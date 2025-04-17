@@ -54,10 +54,12 @@ soupir_moran_bv <- function(h, dist_matrix, gene1, gene2, perms) {
 
   listw_kernel = K(dist_sq, h)
   #diag(listw_kernel) = 0
+  #get neighbors
+  neighbors = lapply(1:nrow(listw_kernel), function(r){
+    which(listw_kernel[r,] != 0)
+  })
+  class(neighbors) <- c("nb")
 
-  nz_idx = which(as.matrix(listw_kernel) != 0, arr.ind = TRUE)
-  neighbors <- split(nz_idx[,2], nz_idx[,1])
-  class(neighbors) = c("nb")
   weights = lapply(1:nrow(listw_kernel), function(r){
     v = listw_kernel[r,neighbors[[r]]]
     v/sum(v)
