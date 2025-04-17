@@ -1,0 +1,15 @@
+Package: KernelCommunication
+Type: Package
+Title: Package to Calculate Moran's I over Range of Scales
+Version: 1.0
+Date: 2025-04-17
+Authors@R: 
+    c(
+      person("Alex", "Soupir", , "alex.soupir@moffitt.org", role = c("aut", "cre"),
+           comment = c(ORCID = "XX"))
+    )
+Description: Provides efficient matrix operations using Rcpp and the Eigen C++ library, including support for fast multiplication of sparse and dense matrices. This package is intended to accelerate linear algebra computations in R by leveraging high-performance C++ backends.
+License: GPL (>= 2)
+Imports: Rcpp (>= 1.0.13)
+LinkingTo: Rcpp, RcppEigen
+RoxygenNote: 7.3.2
