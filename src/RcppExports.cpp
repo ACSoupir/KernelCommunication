@@ -11,6 +11,36 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// gaussian_kernel_weights
+Eigen::SparseMatrix<double> gaussian_kernel_weights(const Eigen::MatrixXd& coords, const double h, const double eps);
+RcppExport SEXP _KernelCommunication_gaussian_kernel_weights(SEXP coordsSEXP, SEXP hSEXP, SEXP epsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< const double >::type h(hSEXP);
+    Rcpp::traits::input_parameter< const double >::type eps(epsSEXP);
+    rcpp_result_gen = Rcpp::wrap(gaussian_kernel_weights(coords, h, eps));
+    return rcpp_result_gen;
+END_RCPP
+}
+// soupir_moran_bv_multi
+Rcpp::List soupir_moran_bv_multi(const Eigen::MatrixXd& coords, const Rcpp::NumericVector& gene1, const Rcpp::NumericVector& gene2, const Rcpp::NumericVector& h_vec, const int perms, const std::string transformation, const double eps);
+RcppExport SEXP _KernelCommunication_soupir_moran_bv_multi(SEXP coordsSEXP, SEXP gene1SEXP, SEXP gene2SEXP, SEXP h_vecSEXP, SEXP permsSEXP, SEXP transformationSEXP, SEXP epsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type gene1(gene1SEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type gene2(gene2SEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type h_vec(h_vecSEXP);
+    Rcpp::traits::input_parameter< const int >::type perms(permsSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type transformation(transformationSEXP);
+    Rcpp::traits::input_parameter< const double >::type eps(epsSEXP);
+    rcpp_result_gen = Rcpp::wrap(soupir_moran_bv_multi(coords, gene1, gene2, h_vec, perms, transformation, eps));
+    return rcpp_result_gen;
+END_RCPP
+}
 // sparse_dense_mult
 Eigen::MatrixXd sparse_dense_mult(const Eigen::SparseMatrix<double>& Ws, const Eigen::MatrixXd& P);
 RcppExport SEXP _KernelCommunication_sparse_dense_mult(SEXP WsSEXP, SEXP PSEXP) {
@@ -25,6 +55,8 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_KernelCommunication_gaussian_kernel_weights", (DL_FUNC) &_KernelCommunication_gaussian_kernel_weights, 3},
+    {"_KernelCommunication_soupir_moran_bv_multi", (DL_FUNC) &_KernelCommunication_soupir_moran_bv_multi, 7},
     {"_KernelCommunication_sparse_dense_mult", (DL_FUNC) &_KernelCommunication_sparse_dense_mult, 2},
     {NULL, NULL, 0}
 };
