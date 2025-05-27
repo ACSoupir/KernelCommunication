@@ -1,0 +1,22 @@
+#' Clear Cell Renal Cell Carcinoma CosMx Data
+#'
+#' A core from a TMA of clear cell renal cell carcinoma samples subjected to single cell spatial transcriptomics with CosMx SMI.
+#'
+#' @format ## `ccRCCExample`
+#' A data frame with 7,122 rows and 12 columns:
+#' \describe{
+#'   \item{Slide}{Our slide identifier}
+#'   \item{x}{centroid location in the x direction - in mm}
+#'   \item{y}{centroid location in the y direction - in mm}
+#'   \item{cell_id}{unique identifier for each cell}
+#'   \item{CD274}{SCTransform scale.data (residuals) of CD274 (slide normalized)}
+#'   \item{PDCD1}{SCTransform scale.data (residuals) of PDCD1 (slide normalized)}
+#'   \item{slide}{run slide number}
+#'   \item{fov}{slide FOV number}
+#'   \item{cell}{FOV cell number}
+#'   \item{unique_fov}{unique identifier for CosMx SMI imaging FOV}
+#'   \item{tma_core}{combined FOV number relating back to the TMA core}
+#'   \item{unique_core}{unique identifier for the TMA core given the slide and core}
+#' }
+#' @source Mitchell Hayes
+"ccRCCExample"
