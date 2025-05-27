@@ -3,3 +3,5 @@
 .RData
 .Ruserdata
 KernelCommunication.Rproj
+testing.R
+src/archive/*
