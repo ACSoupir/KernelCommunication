@@ -8,8 +8,13 @@ Authors@R:
       person("Alex", "Soupir", , "alex.soupir@moffitt.org", role = c("aut", "cre"),
            comment = c(ORCID = "XX"))
     )
-Description: Provides efficient matrix operations using Rcpp and the Eigen C++ library, including support for fast multiplication of sparse and dense matrices. This package is intended to accelerate linear algebra computations in R by leveraging high-performance C++ backends.
+Description: Provides an easy-to-use interface to calculate bivariate Moran's I. Weights are a function of the bandwidth of a gaussian kernel applied to the distance matrix.
 License: GPL (>= 2)
-Imports: Rcpp (>= 1.0.13)
+Imports: Rcpp (>= 1.0.13),
+  Matrix
 LinkingTo: Rcpp, RcppEigen
 RoxygenNote: 7.3.2
+Depends: 
+    R (>= 3.5)
+LazyData: true
+Encoding: UTF-8
