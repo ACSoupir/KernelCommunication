@@ -118,7 +118,7 @@ cells, so the sparse and dense paths disagreed on the row sums and therefore on
 
 ## Testing and documentation integrity
 
-The suite went from zero tests to 407, pinned to `soupir_moran_multi()`, which is
+The suite went from zero tests to 451, pinned to `soupir_moran_multi()`, which is
 never modified and is hash-guarded by a test.
 
 Six documents in this repository asserted results that do not hold, including one

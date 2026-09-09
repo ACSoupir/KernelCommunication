@@ -56,7 +56,8 @@ sample sizes at `eps = 0`, and which can produce calibrated significance with fa
 
 Two constraints hold throughout: **`R/soupir_moran_multi.R` is never modified** (it is the regression
 oracle, and `soupir_moran_multi()` stays exported permanently), and **nothing is pushed** — all work is
-local commits. No file, comment, doc or commit message mentions Claude, AI, agents or Anthropic.
+local commits. No file, comment, document or commit message carries tooling attribution of any
+kind.
 
 ### One refinement to the `eps` decision, flagged explicitly
 
