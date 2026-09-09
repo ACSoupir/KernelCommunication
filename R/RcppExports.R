@@ -5,8 +5,39 @@ gaussian_kernel_weights <- function(coords, h, eps = 1e-15) {
     .Call(`_multiScaleAC_gaussian_kernel_weights`, coords, h, eps)
 }
 
-moran_multi_cpp <- function(coords, gene1, gene2, h_vec, Y_perm, perms, seed, eps, batch_size, verbose, large_mode_n, kernel, dist_method) {
-    .Call(`_multiScaleAC_moran_multi_cpp`, coords, gene1, gene2, h_vec, Y_perm, perms, seed, eps, batch_size, verbose, large_mode_n, kernel, dist_method)
+#' Kernel row sums and spatially lagged gene1, for every bandwidth
+#'
+#' Internal. Computes, for each bandwidth h, the row sums of the kernel weight matrix and the
+#' vector v_h = K(h) (gene1 / rowsum(h)) which the caller contracts with gene2.
+#'
+#' @param coords N x 2 numeric matrix of coordinates.
+#' @param gene1 Length-N numeric vector, already centred and scaled.
+#' @param h_vec Numeric vector of bandwidths.
+#' @param eps Weights are kept when \code{w > eps}, and excluded from the row sum otherwise.
+#'   \code{eps = 0} keeps every non-underflowed weight, which is the documented default and the
+#'   condition under which this reduces exactly to the reference implementation.
+#' @param kernel "gaussian" or "uniform".
+#' @param dist_method "euclidean" or "manhattan".
+#' @param drop_isolated When TRUE, cells with a zero row sum contribute nothing rather than
+#'   producing a non-finite value. The caller uses this to implement nan_policy.
+#' @param n_threads Requested OpenMP threads; ignored when built without OpenMP support.
+#'
+#' @return A list with \code{V} (n_h x N), \code{rowsum_mean}, \code{rowsum_min},
+#'   \code{n_isolated} and \code{h}.
+#' @keywords internal
+moran_kernel_pass <- function(coords, gene1, h_vec, eps = 0.0, kernel = "gaussian", dist_method = "euclidean", drop_isolated = TRUE, n_threads = 1L) {
+    .Call(`_multiScaleAC_moran_kernel_pass`, coords, gene1, h_vec, eps, kernel, dist_method, drop_isolated, n_threads)
+}
+
+#' Report whether the package was compiled with OpenMP support
+#'
+#' Internal. Used by tests and by the benchmark harness so a timing figure is never reported
+#' without saying whether it was threaded.
+#'
+#' @return An integer: the maximum number of threads available, or 1 without OpenMP.
+#' @keywords internal
+moran_max_threads <- function() {
+    .Call(`_multiScaleAC_moran_max_threads`)
 }
 
 sparse_dense_mult <- function(Ws, P) {

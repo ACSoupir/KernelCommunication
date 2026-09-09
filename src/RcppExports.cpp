@@ -24,26 +24,31 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// moran_multi_cpp
-Rcpp::List moran_multi_cpp(const Eigen::MatrixXd& coords, const Eigen::VectorXd& gene1, const Eigen::VectorXd& gene2, const Eigen::VectorXd& h_vec, const Eigen::MatrixXd& Y_perm, int perms, int seed, double eps, int batch_size, bool verbose, int large_mode_n, std::string kernel, std::string dist_method);
-RcppExport SEXP _multiScaleAC_moran_multi_cpp(SEXP coordsSEXP, SEXP gene1SEXP, SEXP gene2SEXP, SEXP h_vecSEXP, SEXP Y_permSEXP, SEXP permsSEXP, SEXP seedSEXP, SEXP epsSEXP, SEXP batch_sizeSEXP, SEXP verboseSEXP, SEXP large_mode_nSEXP, SEXP kernelSEXP, SEXP dist_methodSEXP) {
+// moran_kernel_pass
+Rcpp::List moran_kernel_pass(const Eigen::Map<Eigen::MatrixXd> coords, const Eigen::Map<Eigen::VectorXd> gene1, const Eigen::Map<Eigen::VectorXd> h_vec, double eps, std::string kernel, std::string dist_method, bool drop_isolated, int n_threads);
+RcppExport SEXP _multiScaleAC_moran_kernel_pass(SEXP coordsSEXP, SEXP gene1SEXP, SEXP h_vecSEXP, SEXP epsSEXP, SEXP kernelSEXP, SEXP dist_methodSEXP, SEXP drop_isolatedSEXP, SEXP n_threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type coords(coordsSEXP);
-    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type gene1(gene1SEXP);
-    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type gene2(gene2SEXP);
-    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type h_vec(h_vecSEXP);
-    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type Y_perm(Y_permSEXP);
-    Rcpp::traits::input_parameter< int >::type perms(permsSEXP);
-    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< const Eigen::Map<Eigen::MatrixXd> >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< const Eigen::Map<Eigen::VectorXd> >::type gene1(gene1SEXP);
+    Rcpp::traits::input_parameter< const Eigen::Map<Eigen::VectorXd> >::type h_vec(h_vecSEXP);
     Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
-    Rcpp::traits::input_parameter< int >::type batch_size(batch_sizeSEXP);
-    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
-    Rcpp::traits::input_parameter< int >::type large_mode_n(large_mode_nSEXP);
     Rcpp::traits::input_parameter< std::string >::type kernel(kernelSEXP);
     Rcpp::traits::input_parameter< std::string >::type dist_method(dist_methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(moran_multi_cpp(coords, gene1, gene2, h_vec, Y_perm, perms, seed, eps, batch_size, verbose, large_mode_n, kernel, dist_method));
+    Rcpp::traits::input_parameter< bool >::type drop_isolated(drop_isolatedSEXP);
+    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(moran_kernel_pass(coords, gene1, h_vec, eps, kernel, dist_method, drop_isolated, n_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// moran_max_threads
+int moran_max_threads();
+RcppExport SEXP _multiScaleAC_moran_max_threads() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(moran_max_threads());
     return rcpp_result_gen;
 END_RCPP
 }
@@ -62,7 +67,8 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_multiScaleAC_gaussian_kernel_weights", (DL_FUNC) &_multiScaleAC_gaussian_kernel_weights, 3},
-    {"_multiScaleAC_moran_multi_cpp", (DL_FUNC) &_multiScaleAC_moran_multi_cpp, 13},
+    {"_multiScaleAC_moran_kernel_pass", (DL_FUNC) &_multiScaleAC_moran_kernel_pass, 8},
+    {"_multiScaleAC_moran_max_threads", (DL_FUNC) &_multiScaleAC_moran_max_threads, 0},
     {"_multiScaleAC_sparse_dense_mult", (DL_FUNC) &_multiScaleAC_sparse_dense_mult, 2},
     {NULL, NULL, 0}
 };

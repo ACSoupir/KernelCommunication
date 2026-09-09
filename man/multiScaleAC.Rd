@@ -12,9 +12,11 @@ multiScaleAC(
   perms = 1000,
   seed = 333,
   eps = 0,
-  batch_size = 100,
+  nan_policy = c("zero", "drop", "na"),
+  batch_size = 256,
+  n_threads = 0,
   verbose = NULL,
-  large_mode_n = 10000,
+  large_mode_n = NULL,
   kernel = c("gaussian", "uniform"),
   distance = c("euclidean", "manhattan"),
   ...
@@ -27,19 +29,42 @@ multiScaleAC(
 
 \item{gene2}{numeric vector of expression values for the second variable (length N)}
 
-\item{h}{numeric vector of kernel bandwidths (must be > 0)}
+\item{h}{numeric vector of kernel bandwidths, in the same units as
+\code{coords} (must be > 0). See the bandwidth section below; choosing these
+on the wrong scale is the most common way to get a meaningless result.}
 
-\item{perms}{integer number of permutations (default: 1000)}
+\item{perms}{integer number of permutations (default: 1000). \code{0} is
+permitted and returns the observed curve with no permutation matrix.}
 
 \item{seed}{integer random seed for reproducibility (default: 333)}
 
-\item{eps}{numeric epsilon threshold for weight pruning (default: 0 = no pruning)}
+\item{eps}{numeric weight threshold (default: 0, meaning no thresholding).
+Weights are retained when \code{w > eps} and are excluded from the row sum
+otherwise. The default of 0 is deliberate: computing the statistic without
+discarding low weights is the point of the method, and is what distinguishes
+it from approaches that filter low kernel density estimates first. Raising
+\code{eps} is supported but changes the estimand.}
 
-\item{batch_size}{integer permutations per batch for memory optimization (default: 100)}
+\item{nan_policy}{character, how to report a bandwidth at which some cell has
+no neighbours carrying weight. \code{"zero"} (default) reproduces the
+reference implementation, which reports 0 for the whole affected bandwidth;
+\code{"drop"} excludes only the isolated cells; \code{"na"} reports
+\code{NA} so the situation cannot pass unnoticed. All three warn.}
 
-\item{verbose}{logical show progress bar (default: NULL = auto for large datasets)}
+\item{batch_size}{integer permutations contracted per batch (default: 256).
+Bounds peak memory at N x \code{batch_size} instead of N x \code{perms};
+results are unaffected.}
 
-\item{large_mode_n}{integer N threshold for automatic sparse mode (default: 10000)}
+\item{n_threads}{integer number of threads for the kernel sweep (default: 0,
+meaning all available). Ignored when the package was built without OpenMP,
+which includes builds using stock Apple clang.}
+
+\item{verbose}{logical show progress (default: NULL = auto for large datasets)}
+
+\item{large_mode_n}{deprecated and ignored. It previously claimed to select a
+sparse code path, but the threshold was hard-coded in C++ and this argument
+was never read. There is now a single compute path whose working memory is
+O(N x length(h)) regardless of N, so no threshold is needed.}
 
 \item{kernel}{character or function. If character: built-in kernel ("gaussian" or "uniform").
 If function: custom kernel function with signature \code{kernel(dist_matrix, h, ...)} where
@@ -69,9 +94,9 @@ An S4 object of class \linkS4class{kernelcomm_result} with slots:
 }
 }
 \description{
-Computes bivariate Moran's I across multiple kernel bandwidth scales using
-RcppEigen for efficient sparse matrix operations. Uses permutation-based
-inference with optimized handling for large datasets.
+Computes bivariate Moran's I across a range of kernel bandwidths, producing a
+functional curve \eqn{I(h)} rather than a single value at one chosen scale.
+Inference is by permutation of the second gene.
 }
 \details{
 \strong{Built-in Kernels:}
@@ -103,57 +128,63 @@ Custom distance functions must have signature: \code{distance(coords, ...)} wher
 }
 The function must return an N x N distance matrix.
 
-\strong{Performance Notes:}
-Custom kernel/distance functions are computed in R and disable C++ optimizations.
-For large datasets (N > 10,000), using built-in kernels and distances is recommended.
+\strong{Choosing bandwidths:}
+Bandwidths are in the units of \code{coords}. This is the most common source
+of meaningless results. If \code{h} is far too large, every pairwise weight
+approaches 1, the kernel becomes a constant matrix, and \eqn{I(h)} collapses
+toward zero for every gene pair; if far too small, no cell has a neighbour
+carrying weight and the statistic is undefined. The bundled
+\code{\link{ccRCCExample}} data is in millimetres and spans about 1 mm, so
+bandwidths of roughly 0.01 to 0.25 are appropriate; the same tissue measured
+in micrometres would want 10 to 250. Use
+\code{\link{suggest_bandwidths}} rather than guessing, and
+\code{\link{qc_neighborhoods}} to confirm the effective neighbourhood size
+before interpreting the curve.
+
+\strong{Performance:}
+The built-in kernels and distances use a two-pass sweep that computes each
+pair distance once and reuses it across all bandwidths, with working memory of
+O(N x length(h)) rather than O(N^2). Custom kernel or distance functions are
+evaluated in R and do build a full N x N matrix, so they are limited to
+smaller N.
 }
 \examples{
-\dontrun{
-# Basic usage with permutation test
+# Bandwidths are in coordinate units. These coordinates span the unit square,
+# so bandwidths of a few hundredths cover a handful of neighbours each.
 set.seed(1)
-n <- 500
-coords <- matrix(runif(2 * n, -50, 50), ncol = 2)
+n <- 200
+coords <- matrix(runif(2 * n), ncol = 2)
 g1 <- rnorm(n)
 g2 <- rnorm(n)
-h_vec <- c(5, 10, 20, 40)
 
-result <- multiScaleAC(
-  coords = coords,
-  gene1 = g1,
-  gene2 = g2,
-  h = h_vec,
-  perms = 999,
-  seed = 123
-)
+result <- multiScaleAC(coords, g1, g2, h = c(0.05, 0.1, 0.2), perms = 99)
+result
 
-# Custom kernel (exponential decay)
-exp_kernel <- function(dist_matrix, h) {
-  exp(-dist_matrix / h)
-}
-result_custom <- multiScaleAC(
-  coords = coords,
-  gene1 = g1,
-  gene2 = g2,
-  h = h_vec,
-  kernel = exp_kernel
-)
+# Check that a bandwidth gives a sensible neighbourhood size before trusting
+# the curve: a mean close to N means the kernel is saturated and I(h) will
+# collapse toward zero regardless of the biology.
+qc_neighborhoods(coords, h = 0.1)
 
-# Custom distance (Minkowski with p=3) and custom kernel
+\dontrun{
+# Custom kernel (exponential decay). Evaluated in R, so N x N memory.
+exp_kernel <- function(dist_matrix, h) exp(-dist_matrix / h)
+result_custom <- multiScaleAC(coords, g1, g2, h = c(0.05, 0.1),
+                              kernel = exp_kernel)
+
+# Custom distance (Minkowski, p = 3) with the default Gaussian kernel.
 minkowski_dist <- function(coords, p = 3) {
   as.matrix(dist(coords, method = "minkowski", p = p))
 }
-result_mink <- multiScaleAC(
-  coords = coords,
-  gene1 = g1,
-  gene2 = g2,
-  h = h_vec,
-  distance = minkowski_dist,
-  p = 3
-)
+result_mink <- multiScaleAC(coords, g1, g2, h = c(0.05, 0.1),
+                            distance = minkowski_dist, p = 3)
 }
 
 }
 \seealso{
-\code{\link{soupir_moran_bv}} for single-bandwidth analysis,
-\code{\link{soupir_moran_multi}} for the deprecated multi-bandwidth function
+\code{\link{compute_significance}} to add p-values,
+\code{\link{suggest_bandwidths}} to choose \code{h},
+\code{\link{multiScaleAC_batch}} for many samples,
+\code{\link{soupir_moran_bv}} for single-bandwidth analysis, and
+\code{\link{soupir_moran_multi}}, the reference implementation, which remains
+supported and is not deprecated.
 }

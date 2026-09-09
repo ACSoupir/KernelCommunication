@@ -1,3 +1,13 @@
-CXX11 = $(CXX)
-CXX11STD = -std=c++11
-CXX11FLAGS = $(CXXFLAGS) $(CXX11STD)
+# The previous contents set CXX11, CXX11STD and CXX11FLAGS. Those variables have no effect on
+# modern R (which selects the standard via CXX_STD), so the file was inert while still being the
+# kind of compiler-variable override R CMD check flags. It is replaced with the portable OpenMP
+# idiom.
+#
+# $(SHLIB_OPENMP_CXXFLAGS) expands to whatever the platform's toolchain needs, and to nothing at all
+# where OpenMP is unavailable -- notably stock Apple clang. That is the intended behaviour: the
+# package then builds single-threaded rather than failing to build, and the parallel regions are
+# guarded by #ifdef _OPENMP. moran_max_threads() reports which case applies, so a benchmark can
+# never claim a threaded timing on a serial build.
+
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
+PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS)

@@ -1,19 +1,40 @@
 #' Multi-scale Spatial Autocorrelation Analysis
 #'
-#' Computes bivariate Moran's I across multiple kernel bandwidth scales using
-#' RcppEigen for efficient sparse matrix operations. Uses permutation-based
-#' inference with optimized handling for large datasets.
+#' Computes bivariate Moran's I across a range of kernel bandwidths, producing a
+#' functional curve \eqn{I(h)} rather than a single value at one chosen scale.
+#' Inference is by permutation of the second gene.
 #'
 #' @param coords numeric matrix of spatial coordinates (N x 2)
 #' @param gene1 numeric vector of expression values for the first variable (length N)
 #' @param gene2 numeric vector of expression values for the second variable (length N)
-#' @param h numeric vector of kernel bandwidths (must be > 0)
-#' @param perms integer number of permutations (default: 1000)
+#' @param h numeric vector of kernel bandwidths, in the same units as
+#'   \code{coords} (must be > 0). See the bandwidth section below; choosing these
+#'   on the wrong scale is the most common way to get a meaningless result.
+#' @param perms integer number of permutations (default: 1000). \code{0} is
+#'   permitted and returns the observed curve with no permutation matrix.
 #' @param seed integer random seed for reproducibility (default: 333)
-#' @param eps numeric epsilon threshold for weight pruning (default: 0 = no pruning)
-#' @param batch_size integer permutations per batch for memory optimization (default: 100)
-#' @param verbose logical show progress bar (default: NULL = auto for large datasets)
-#' @param large_mode_n integer N threshold for automatic sparse mode (default: 10000)
+#' @param eps numeric weight threshold (default: 0, meaning no thresholding).
+#'   Weights are retained when \code{w > eps} and are excluded from the row sum
+#'   otherwise. The default of 0 is deliberate: computing the statistic without
+#'   discarding low weights is the point of the method, and is what distinguishes
+#'   it from approaches that filter low kernel density estimates first. Raising
+#'   \code{eps} is supported but changes the estimand.
+#' @param nan_policy character, how to report a bandwidth at which some cell has
+#'   no neighbours carrying weight. \code{"zero"} (default) reproduces the
+#'   reference implementation, which reports 0 for the whole affected bandwidth;
+#'   \code{"drop"} excludes only the isolated cells; \code{"na"} reports
+#'   \code{NA} so the situation cannot pass unnoticed. All three warn.
+#' @param batch_size integer permutations contracted per batch (default: 256).
+#'   Bounds peak memory at N x \code{batch_size} instead of N x \code{perms};
+#'   results are unaffected.
+#' @param n_threads integer number of threads for the kernel sweep (default: 0,
+#'   meaning all available). Ignored when the package was built without OpenMP,
+#'   which includes builds using stock Apple clang.
+#' @param verbose logical show progress (default: NULL = auto for large datasets)
+#' @param large_mode_n deprecated and ignored. It previously claimed to select a
+#'   sparse code path, but the threshold was hard-coded in C++ and this argument
+#'   was never read. There is now a single compute path whose working memory is
+#'   O(N x length(h)) regardless of N, so no threshold is needed.
 #' @param kernel character or function. If character: built-in kernel ("gaussian" or "uniform").
 #'   If function: custom kernel function with signature \code{kernel(dist_matrix, h, ...)} where
 #'   \code{dist_matrix} is an N x N matrix of pairwise distances and \code{h} is the bandwidth.
@@ -68,57 +89,63 @@
 #' }
 #' The function must return an N x N distance matrix.
 #'
-#' \strong{Performance Notes:}
-#' Custom kernel/distance functions are computed in R and disable C++ optimizations.
-#' For large datasets (N > 10,000), using built-in kernels and distances is recommended.
+#' \strong{Choosing bandwidths:}
+#' Bandwidths are in the units of \code{coords}. This is the most common source
+#' of meaningless results. If \code{h} is far too large, every pairwise weight
+#' approaches 1, the kernel becomes a constant matrix, and \eqn{I(h)} collapses
+#' toward zero for every gene pair; if far too small, no cell has a neighbour
+#' carrying weight and the statistic is undefined. The bundled
+#' \code{\link{ccRCCExample}} data is in millimetres and spans about 1 mm, so
+#' bandwidths of roughly 0.01 to 0.25 are appropriate; the same tissue measured
+#' in micrometres would want 10 to 250. Use
+#' \code{\link{suggest_bandwidths}} rather than guessing, and
+#' \code{\link{qc_neighborhoods}} to confirm the effective neighbourhood size
+#' before interpreting the curve.
+#'
+#' \strong{Performance:}
+#' The built-in kernels and distances use a two-pass sweep that computes each
+#' pair distance once and reuses it across all bandwidths, with working memory of
+#' O(N x length(h)) rather than O(N^2). Custom kernel or distance functions are
+#' evaluated in R and do build a full N x N matrix, so they are limited to
+#' smaller N.
 #'
 #' @examples
-#' \dontrun{
-#' # Basic usage with permutation test
+#' # Bandwidths are in coordinate units. These coordinates span the unit square,
+#' # so bandwidths of a few hundredths cover a handful of neighbours each.
 #' set.seed(1)
-#' n <- 500
-#' coords <- matrix(runif(2 * n, -50, 50), ncol = 2)
+#' n <- 200
+#' coords <- matrix(runif(2 * n), ncol = 2)
 #' g1 <- rnorm(n)
 #' g2 <- rnorm(n)
-#' h_vec <- c(5, 10, 20, 40)
 #'
-#' result <- multiScaleAC(
-#'   coords = coords,
-#'   gene1 = g1,
-#'   gene2 = g2,
-#'   h = h_vec,
-#'   perms = 999,
-#'   seed = 123
-#' )
+#' result <- multiScaleAC(coords, g1, g2, h = c(0.05, 0.1, 0.2), perms = 99)
+#' result
 #'
-#' # Custom kernel (exponential decay)
-#' exp_kernel <- function(dist_matrix, h) {
-#'   exp(-dist_matrix / h)
-#' }
-#' result_custom <- multiScaleAC(
-#'   coords = coords,
-#'   gene1 = g1,
-#'   gene2 = g2,
-#'   h = h_vec,
-#'   kernel = exp_kernel
-#' )
+#' # Check that a bandwidth gives a sensible neighbourhood size before trusting
+#' # the curve: a mean close to N means the kernel is saturated and I(h) will
+#' # collapse toward zero regardless of the biology.
+#' qc_neighborhoods(coords, h = 0.1)
 #'
-#' # Custom distance (Minkowski with p=3) and custom kernel
+#' \dontrun{
+#' # Custom kernel (exponential decay). Evaluated in R, so N x N memory.
+#' exp_kernel <- function(dist_matrix, h) exp(-dist_matrix / h)
+#' result_custom <- multiScaleAC(coords, g1, g2, h = c(0.05, 0.1),
+#'                               kernel = exp_kernel)
+#'
+#' # Custom distance (Minkowski, p = 3) with the default Gaussian kernel.
 #' minkowski_dist <- function(coords, p = 3) {
 #'   as.matrix(dist(coords, method = "minkowski", p = p))
 #' }
-#' result_mink <- multiScaleAC(
-#'   coords = coords,
-#'   gene1 = g1,
-#'   gene2 = g2,
-#'   h = h_vec,
-#'   distance = minkowski_dist,
-#'   p = 3
-#' )
+#' result_mink <- multiScaleAC(coords, g1, g2, h = c(0.05, 0.1),
+#'                             distance = minkowski_dist, p = 3)
 #' }
 #'
-#' @seealso \code{\link{soupir_moran_bv}} for single-bandwidth analysis,
-#' \code{\link{soupir_moran_multi}} for the deprecated multi-bandwidth function
+#' @seealso \code{\link{compute_significance}} to add p-values,
+#' \code{\link{suggest_bandwidths}} to choose \code{h},
+#' \code{\link{multiScaleAC_batch}} for many samples,
+#' \code{\link{soupir_moran_bv}} for single-bandwidth analysis, and
+#' \code{\link{soupir_moran_multi}}, the reference implementation, which remains
+#' supported and is not deprecated.
 #'
 #' @export
 multiScaleAC <- function(coords,
@@ -128,99 +155,100 @@ multiScaleAC <- function(coords,
                          perms = 1000,
                          seed = 333,
                          eps = 0,
-                         batch_size = 100,
+                         nan_policy = c("zero", "drop", "na"),
+                         batch_size = 256,
+                         n_threads = 0,
                          verbose = NULL,
-                         large_mode_n = 10000,
+                         large_mode_n = NULL,
                          kernel = c("gaussian", "uniform"),
                          distance = c("euclidean", "manhattan"),
                          ...) {
 
   # Capture additional parameters
   extra_params <- list(...)
-  
+
+  nan_policy <- match.arg(nan_policy)
+
   # Validate and normalize kernel parameter
   kernel_is_custom <- is.function(kernel)
   if (!kernel_is_custom) {
     kernel <- match.arg(kernel)
   }
-  
+
   # Validate and normalize distance parameter
   distance_is_custom <- is.function(distance)
   if (!distance_is_custom) {
     distance <- match.arg(distance)
   }
 
+  if (!is.null(large_mode_n)) {
+    warning("`large_mode_n` is deprecated and ignored. It previously described a sparse code path ",
+            "selected by a threshold hard-coded in C++, and the argument itself was never read. ",
+            "There is now one compute path with working memory O(N * length(h)).", call. = FALSE)
+  }
+
   # Validate inputs
   .validate_inputs(coords, gene1, gene2, h, perms,
-                   eps, batch_size, large_mode_n, seed,
+                   eps, batch_size, seed,
                    kernel, distance, kernel_is_custom, distance_is_custom)
 
-  # Get N
   N <- nrow(coords)
 
-  # Sanitize h (filter negative/zero values with warnings)
+  # Sanitize h (filter non-positive values with warnings)
   h_clean <- .sanitize_h(h)
 
-  # Determine large mode (auto-disable for custom functions)
-  large_mode <- N > large_mode_n && !kernel_is_custom && !distance_is_custom
+  if (is.null(verbose)) verbose <- N > 20000L
 
-  # Auto-enable verbose for large datasets
-  if (is.null(verbose)) {
-    verbose <- large_mode
-  }
-
-  # Warn about large mode disable for custom functions
-  if (N > large_mode_n && kernel_is_custom) {
-    warning("Custom kernel disables large dataset optimization; computation may be slow")
-  }
-  if (N > large_mode_n && distance_is_custom) {
-    warning("Custom distance method disables large dataset optimization; computation may be slow")
-  }
-
-  # Center and scale genes
+  # Center and scale genes. A zero-variance gene yields NaN throughout, which the reference maps to
+  # an all-zero curve; that is detected here rather than allowed to propagate.
   g1_s <- as.vector(scale(gene1))
   g2_s <- as.vector(scale(gene2))
+  degenerate <- .has_degenerate_gene(g1_s, g2_s)
+  denom <- sum(g1_s^2)
 
-  # Generate permutation matrix ONCE (for all paths to ensure RNG compatibility)
-  Y_perm <- NULL
-  if (perms > 0) {
-    set.seed(seed)
-    Y_perm <- replicate(perms, sample(g2_s, N, replace = FALSE))
+  if (degenerate) {
+    # Nothing to compute: reproduce the reference's all-zero (or NA) curve directly.
+    res <- list(observed = rep(NA_real_, length(h_clean)),
+                permutations = matrix(NA_real_, length(h_clean), max(0L, as.integer(perms))))
+    res <- .apply_nan_policy(res, rep(0L, length(h_clean)), h_clean,
+                             degenerate_input = TRUE, policy = nan_policy)
+    result <- c(list(h = h_clean), res)
+    return(.create_result_object(result, coords, gene1, gene2, seed, call = match.call()))
   }
 
-  # Call C++ function for built-in kernels/distances
   if (!kernel_is_custom && !distance_is_custom) {
-    result <- moran_multi_cpp(
-      coords = coords,
-      gene1 = g1_s,
-      gene2 = g2_s,
-      h_vec = h_clean,
-      Y_perm = Y_perm,
-      perms = perms,
-      seed = seed,
-      eps = eps,
-      batch_size = batch_size,
-      verbose = verbose,
-      large_mode_n = large_mode_n,
-      kernel = kernel,
-      dist_method = distance
+    if (verbose) {
+      message(sprintf("Kernel sweep: N = %d, %d bandwidths, %d thread(s)",
+                      N, length(h_clean), if (n_threads > 0) n_threads else moran_max_threads()))
+    }
+    pass <- moran_kernel_pass(
+      coords        = as.matrix(coords[, 1:2, drop = FALSE]),
+      gene1         = g1_s,
+      h_vec         = as.numeric(h_clean),
+      eps           = eps,
+      kernel        = kernel,
+      dist_method   = distance,
+      drop_isolated = TRUE,
+      n_threads     = if (n_threads > 0) as.integer(n_threads) else moran_max_threads()
     )
+    V <- pass$V
+    n_isolated <- pass$n_isolated
   } else {
-    # Custom kernel/distance path (R-based)
-    result <- .compute_custom_kernel_moran(
-      coords = coords,
-      gene1 = g1_s,
-      gene2 = g2_s,
-      h_vec = h_clean,
-      Y_perm = Y_perm,
-      perms = perms,
-      eps = eps,
-      distance = distance,
-      kernel = kernel,
-      extra_params = extra_params,
-      verbose = verbose
+    # Custom kernel/distance path (R-based). Returns V in the same n_h x N orientation.
+    custom <- .compute_custom_kernel_moran(
+      coords = coords, gene1 = g1_s, h_vec = h_clean, eps = eps,
+      distance = distance, kernel = kernel,
+      extra_params = extra_params, verbose = verbose
     )
+    V <- custom$V
+    n_isolated <- custom$n_isolated
   }
+
+  res <- .contract_permutations(V, g2_s, denom, perms, seed, batch_size)
+  res <- .apply_nan_policy(res, n_isolated, h_clean,
+                           degenerate_input = FALSE, policy = nan_policy)
+
+  result <- list(h = h_clean, observed = res$observed, permutations = res$permutations)
 
   # Create S4 object with raw results only
   .create_result_object(result, coords, gene1, gene2, seed, call = match.call())
@@ -233,7 +261,7 @@ multiScaleAC <- function(coords,
 #'
 #' @noRd
 .validate_inputs <- function(coords, gene1, gene2, h, perms,
-                             eps, batch_size, large_mode_n, seed,
+                             eps, batch_size, seed,
                              kernel, distance, kernel_is_custom, distance_is_custom) {
 
   # Validate coords
@@ -267,14 +295,27 @@ multiScaleAC <- function(coords,
     stop("At least 3 observations required")
   }
 
-  # Validate h
+  # Validate h. NA and Inf are rejected here rather than in .sanitize_h(), where `if (NA > 0)`
+  # raised an uninformative error about a missing value.
   if (!is.numeric(h) || length(h) < 1) {
     stop("h must contain at least one bandwidth value")
   }
+  if (anyNA(h)) {
+    stop("h contains missing values; every bandwidth must be a finite positive number")
+  }
+  if (any(is.infinite(h))) {
+    stop("h contains infinite values; every bandwidth must be a finite positive number")
+  }
+  if (anyDuplicated(h)) {
+    warning("h contains duplicated bandwidths; they will each be computed and reported separately",
+            call. = FALSE)
+  }
 
-  # Validate perms
-  if (!is.numeric(perms) || perms < 1 || perms != as.integer(perms)) {
-    stop("perms must be a positive integer")
+  # Validate perms. Zero is allowed: it yields the observed curve with no permutation matrix, which
+  # is the mode the analytical-moment inference uses.
+  if (!is.numeric(perms) || length(perms) != 1 || is.na(perms) ||
+      perms < 0 || perms != as.integer(perms)) {
+    stop("perms must be a single non-negative integer")
   }
 
   # Validate seed
@@ -290,11 +331,6 @@ multiScaleAC <- function(coords,
   # Validate batch_size
   if (!is.numeric(batch_size) || batch_size < 1 || batch_size != as.integer(batch_size)) {
     stop("batch_size must be a positive integer")
-  }
-
-  # Validate large_mode_n
-  if (!is.numeric(large_mode_n) || large_mode_n < 3 || large_mode_n != as.integer(large_mode_n)) {
-    stop("large_mode_n must be an integer >= 3")
   }
 
   # Validate kernel
@@ -317,7 +353,11 @@ multiScaleAC <- function(coords,
 }
 
 
-#' Sanitize bandwidth vector (filter negative/zero values)
+#' Sanitize bandwidth vector (filter non-positive values)
+#'
+#' NA and Inf are rejected earlier, by .validate_inputs(). This function previously evaluated
+#' `sum(h < 0)` and then `if (NA > 0)`, which failed with "missing value where TRUE/FALSE needed"
+#' rather than saying what was wrong.
 #'
 #' @noRd
 .sanitize_h <- function(h) {
@@ -346,192 +386,147 @@ multiScaleAC <- function(coords,
 }
 
 
-#' Compute Moran's I with custom kernel/distance (R-based)
+#' Compute spatially lagged gene1 with a custom kernel or distance (R-based)
+#'
+#' Returns \code{V} in the same n_h x N orientation as \code{moran_kernel_pass()}, so the caller
+#' contracts it against gene2 and its permutations through exactly the same code. Previously this
+#' function duplicated the contraction, the row normalisation and the zero-row-sum handling, and
+#' each copy behaved differently from the C++ paths.
+#'
+#' Three fixes over the previous version:
+#'
+#' \itemize{
+#'   \item It no longer stops with "Built-in kernels should use C++ path" when only the distance is
+#'     custom. The path is entered whenever \emph{either} the kernel or the distance is a function,
+#'     so a custom distance with the default Gaussian kernel used to be unreachable -- which made
+#'     the Minkowski example in this function's own documentation throw an error.
+#'   \item The diagonal is now zeroed. It was not, so a custom kernel returning \code{exp(0) = 1} on
+#'     the diagonal gave every cell a self-weight, putting custom results on a different scale from
+#'     built-in ones and quietly making them incomparable.
+#'   \item Row sums of zero are reported rather than silently replaced by 1, so the caller's
+#'     nan_policy applies here too.
+#' }
+#'
+#' This path builds a full N x N matrix and is therefore limited to smaller N, which is documented
+#' rather than worked around: an arbitrary R function cannot be evaluated tile-by-tile.
 #'
 #' @noRd
-.compute_custom_kernel_moran <- function(coords, gene1, gene2, h_vec, Y_perm,
-                                         perms, eps,
+.compute_custom_kernel_moran <- function(coords, gene1, h_vec, eps,
                                          distance, kernel, extra_params,
                                          verbose) {
 
   N <- nrow(coords)
-  g1_s <- gene1
-  g2_s <- gene2
-  denom <- sum(g1_s^2)
+  n_h <- length(h_vec)
 
-  # Compute distance matrix
+  # Distance matrix
   if (is.function(distance)) {
-    # Custom distance function: pass coords and extra_params
-    # Filter extra_params to only those that distance function accepts
     dist_formals <- names(formals(distance))
     dist_params <- extra_params[names(extra_params) %in% dist_formals]
     dist_matrix <- do.call(distance, c(list(coords), dist_params))
+    dist_matrix <- as.matrix(dist_matrix)
   } else {
-    # Built-in distance method
-    if (distance == "euclidean") {
-      dist_matrix <- as.matrix(dist(coords))
-    } else if (distance == "manhattan") {
-      dist_matrix <- as.matrix(dist(coords, method = "manhattan"))
-    }
+    dist_matrix <- as.matrix(dist(coords, method = distance))
   }
-  
-  # Validate distance matrix
+
   if (!is.matrix(dist_matrix) || nrow(dist_matrix) != N || ncol(dist_matrix) != N) {
-    stop("distance function must return a square matrix with dimensions N x N")
+    stop("the distance function must return a square N x N matrix")
+  }
+  if (anyNA(dist_matrix)) {
+    stop("the distance function returned missing values")
   }
 
-  n_h <- length(h_vec)
-  observed <- numeric(n_h)
-  permutations <- matrix(0, nrow = n_h, ncol = perms)
+  V <- matrix(0, nrow = n_h, ncol = N)
+  n_isolated <- integer(n_h)
 
-  # Progress reporting
-  if (verbose && n_h > 1) {
-    progress_interval <- max(1, n_h %/% 20)
-  }
-
-  for (h_idx in seq_along(h_vec)) {
+  for (h_idx in seq_len(n_h)) {
     h <- h_vec[h_idx]
 
-    # Compute kernel weights
     if (is.function(kernel)) {
-      # Custom kernel function: pass dist_matrix, h, and only params kernel accepts
       kernel_formals <- names(formals(kernel))
       kernel_params <- extra_params[names(extra_params) %in% kernel_formals]
       W <- do.call(kernel, c(list(dist_matrix, h), kernel_params))
+      W <- as.matrix(W)
+      if (!identical(dim(W), c(N, N))) {
+        stop("the kernel function must return a square N x N weight matrix")
+      }
+    } else if (kernel == "gaussian") {
+      W <- exp(-dist_matrix^2 / (2 * h^2))
+    } else if (kernel == "uniform") {
+      W <- (dist_matrix <= h) * 1.0
     } else {
-      # Built-in kernel (should not reach here for custom path, but for safety)
-      stop("Built-in kernels should use C++ path")
+      stop("unsupported kernel: ", kernel)
     }
 
-    # Convert to sparse if needed
-    if (!inherits(W, "dsCMatrix")) {
-      W <- Matrix::Matrix(W, sparse = TRUE)
-    }
+    # No self-weight, matching the built-in path and the reference implementation.
+    diag(W) <- 0
 
-    # Row-normalize
-    row_sums <- Matrix::rowSums(W)
-    row_sums[row_sums == 0] <- 1  # Avoid division by zero
-    W_norm <- W / row_sums
+    # Same eps predicate as the compute core: keep w > eps, and exclude the rest from the row sum.
+    if (eps > 0) W[W <= eps] <- 0
 
-    # Compute observed Moran's I
-    lag_g2 <- as.vector(W_norm %*% g2_s)
-    observed[h_idx] <- sum(g1_s * lag_g2) / denom
+    row_sums <- rowSums(W)
+    isolated <- row_sums <= 0
+    n_isolated[h_idx] <- sum(isolated)
 
-    # Compute permutations
-    if (perms > 0) {
-      # Batch processing
-      n_batches <- ceiling(perms / 100)
-      batch_size <- 100
+    u <- gene1 / row_sums
+    u[isolated] <- 0        # contribute nothing; the caller's nan_policy decides what to report
 
-      for (b in seq_len(n_batches)) {
-        batch_start <- (b - 1) * batch_size + 1
-        batch_end <- min(b * batch_size, perms)
-        current_batch_size <- batch_end - batch_start + 1
+    V[h_idx, ] <- as.vector(W %*% u)
 
-        Y_batch <- Y_perm[, batch_start:batch_end, drop = FALSE]
-        U_batch <- W_norm %*% Y_batch
-        perm_vals <- as.vector(crossprod(g1_s, U_batch)) / denom
-        permutations[h_idx, batch_start:batch_end] <- perm_vals
-      }
-    }
-
-    # Progress reporting
     if (verbose && n_h > 1) {
-      if (h_idx %% progress_interval == 0 || h_idx == n_h) {
-        pct <- h_idx * 100 / n_h
-        cat(sprintf("\r  Computing bandwidths: %d%% (%d/%d)", pct, h_idx, n_h))
-        if (h_idx == n_h) cat("\n")
-      }
+      message(sprintf("  bandwidth %d/%d (h = %s)", h_idx, n_h, format(h, digits = 4)))
     }
   }
 
-  list(
-    h = h_vec,
-    observed = observed,
-    permutations = permutations
-  )
+  list(V = V, n_isolated = n_isolated)
 }
 
 
-# #' Compute analytical variance using numerically stable formula
-# #'
-# #' Formula: Var(I) = ||W'x||² / (N-1)²
-# #' where W'x = t(W) %*% x, avoiding catastrophic cancellation
-# #'
-# #' @param W_norm row-normalized weight matrix (N x N, dense or sparse)
-# #' @param N number of observations
-# #' @param g1 standardized gene1 vector (length N)
-# #' @return scalar variance value
-# #'
-# #' @noRd
-# .compute_analytical_variance_direct <- function(W_norm, N, g1) {
-#   # Direct computation: Var(I) = ||W'x||² / (N-1)²
-#   
-#   # For sparse matrices, use Matrix::t() for transpose
-#   if (inherits(W_norm, "Matrix")) {
-#     # Sparse or Matrix class
-#     Wtx <- as.vector(Matrix::t(W_norm) %*% g1)
-#   } else {
-#     # Regular dense matrix
-#     Wtx <- as.vector(t(W_norm) %*% g1)
-#   }
-#   
-#   # Squared norm and variance
-#   Wtx_sq_norm <- sum(Wtx^2)
-#   variance <- Wtx_sq_norm / ((N - 1)^2)
-#   
-#   return(max(variance, 0))  # Ensure non-negative
-# }
+# The analytical variance formula that used to sit here commented out --
+# Var(I) = ||t(W) x||^2 / (N-1)^2 -- is correct, and now lives in R/moments.R as the special case of
+# the exact second moment when both genes are z-scored. See docs/RETRACTIONS.md section 4 for why the
+# test report that accompanied it was retracted even though the mathematics was sound.
 
 
 #' Create kernelcomm_result S4 object
 #'
-#' Helper function to create a valid kernelcomm_result object from computation results.
+#' Gene names are taken from the recorded call, not from \code{substitute()}.
+#' \code{deparse(substitute(gene1))} evaluated in this frame always returned the literal string
+#' \code{"gene1"}, because the promise here is the symbol from \code{multiScaleAC()}'s body rather
+#' than the caller's expression, and the \code{tryCatch} fallback could therefore never fire. Every
+#' plot title and every mxfda interaction name was consequently "gene1 x gene2".
 #'
 #' @param result List with h, observed, permutations from computation
 #' @param coords Matrix of coordinates
 #' @param gene1 Gene 1 expression vector
 #' @param gene2 Gene 2 expression vector
 #' @param seed Random seed used
-#' @param call Function call that created this object
+#' @param call Function call that created this object, from \code{match.call()}
 #'
 #' @return kernelcomm_result S4 object
 #' @noRd
 .create_result_object <- function(result, coords, gene1, gene2, seed, call) {
-  # Get gene names from expressions (deparse substitute)
-  gene1_name <- tryCatch(deparse(substitute(gene1)), error = function(e) "gene1")
-  gene2_name <- tryCatch(deparse(substitute(gene2)), error = function(e) "gene2")
-  
-  # Create S4 object
+  # match.call() names its arguments, so call$gene1 is the caller's expression regardless of whether
+  # they passed positionally. Long expressions are truncated so they stay usable as plot labels.
+  arg_label <- function(expr, fallback) {
+    if (is.null(expr)) return(fallback)
+    txt <- paste(deparse(expr), collapse = "")
+    txt <- gsub("\\s+", " ", txt)
+    if (nchar(txt) > 40L) txt <- paste0(substr(txt, 1L, 37L), "...")
+    if (!nzchar(txt)) fallback else txt
+  }
+
   create_kernelcomm_result(
     h = result$h,
     observed = result$observed,
     permutations = result$permutations,
     coords = as.matrix(coords),
-    gene1_name = gene1_name,
-    gene2_name = gene2_name,
-    sample_id = "sample1",  # Default, can be overridden later
+    gene1_name = arg_label(call$gene1, "gene1"),
+    gene2_name = arg_label(call$gene2, "gene2"),
+    sample_id = "sample1",  # Default, can be overridden by multiScaleAC_batch()
     seed = seed,
     n_cells = nrow(coords),
     call = call
   )
-}
-
-
-#' Format output list (deprecated - kept for backward compatibility)
-#'
-#' @noRd
-.format_output <- function(result) {
-  # This function is deprecated. Use .create_result_object() instead.
-  
-  output <- list(
-    h = result$h,
-    observed = result$observed,
-    permutations = result$permutations,
-    method = "permutation"
-  )
-
-  return(output)
 }
 
 
