@@ -14,18 +14,60 @@ export_mxfda(result, sample_id = NULL, interaction_name = NULL)
 \item{interaction_name}{Character. Gene pair name (e.g., "CD274_PDCD1")}
 }
 \value{
-data.frame with columns: sample_id, interaction_name, r, sumfun, csr, fundiff,
-        p_value, z_score, null_lower, null_upper
+A data frame with one row per bandwidth and columns \code{sample_id},
+  \code{interaction_name}, \code{r} (the bandwidth), \code{sumfun} (the observed
+  statistic), \code{csr} (its value under complete spatial randomness),
+  \code{fundiff} (\code{sumfun - csr}, which is what the manuscript plots),
+  \code{p_value}, \code{z_score}, \code{null_lower}, \code{null_upper} and
+  \code{p_adjusted}. \code{p_adjusted} is always present, as \code{NA} when not
+  computed, so exports from different results always share a column set.
 }
 \description{
-Converts kernelcomm_result to data.frame compatible with
-mxfda::add_summary_function().
+Converts a result to a data frame shaped for
+\code{mxfda::add_summary_function()}, so the interaction curves can go into a
+functional data analysis, as the companion manuscript does with functional
+principal component analysis.
 }
+\section{Bandwidth in the radius column}{
+
+mxfda's spatial summary functions are indexed by a radius \code{r}. This export
+places the kernel bandwidth \code{h} in that column. \strong{They are not the
+same quantity.} A radius is a hard cutoff: pairs inside contribute, pairs
+outside do not. A Gaussian bandwidth is a scale parameter with unbounded
+support: every pair contributes, weighted by distance, and a bandwidth of
+\code{h} draws most of its weight from within roughly \code{h} but not all of
+it.
+
+The substitution is reasonable, because both index a family of nested spatial
+scales and that is all the downstream functional analysis needs. But curves
+exported this way are not interchangeable with radius-based summary functions
+such as Ripley's K or a pair correlation function, and should not be pooled with
+them. This is stated rather than assumed because the previous version of this
+function made the substitution silently.
+}
+
+\section{Verification status}{
+
+The column names here follow mxfda's documented contract for a summary function
+table. \code{mxfda} could not be installed in the environment where this was
+developed, so the round trip through
+\code{mxfda::add_summary_function()} has \strong{not} been executed here. The
+test suite contains a check that runs it and is skipped when mxfda is absent;
+run the tests with mxfda installed to confirm.
+}
+
 \examples{
+set.seed(1)
+n <- 150
+coords <- matrix(runif(2 * n), ncol = 2)
+res <- multiScaleAC(coords, rnorm(n), rnorm(n), h = c(0.05, 0.1, 0.2), perms = 99)
+res <- compute_significance(res)
+
+mx <- export_mxfda(res, sample_id = "RCC4_17")
+head(mx)
+
 \dontrun{
-result <- multiScaleAC(coords, gene1, gene2, h = c(10, 20, 40))
-result <- compute_significance(result)
-mxfda_data <- export_mxfda(result, sample_id = "RCC4_17")
-# mxfda_obj <- mxfda::add_summary_function(mxfda_obj, mxfda_data, metric = "bivariate")
+# Downstream, in mxfda:
+# mxfda_obj <- mxfda::add_summary_function(mxfda_obj, mx, metric = "bivariate")
 }
 }

@@ -8,75 +8,100 @@ multiScaleAC_batch(
   data_list,
   sample_ids = NULL,
   h_vec,
+  ...,
   perms = 1000,
   seed = 333,
   n_cores = 1,
-  checkpoint_file = NULL,
+  checkpoint_dir = NULL,
   coords_cols = c("x", "y"),
   gene1_col = "CD274",
   gene2_col = "PDCD1",
-  ...
+  verbose = TRUE
 )
 }
 \arguments{
-\item{data_list}{List of data frames, each containing coordinates and gene expressions.
-Each data frame must have columns specified in coords_cols, gene1_col, gene2_col.}
+\item{data_list}{List of data frames, each containing coordinates and gene
+expression. Columns are checked for every sample before any computation
+starts, so a missing column fails immediately rather than hours in.}
 
-\item{sample_ids}{Character vector of sample identifiers (optional, auto-generated if NULL)}
+\item{sample_ids}{Character vector of sample identifiers (optional,
+auto-generated from names if NULL). Must be unique, since checkpoint files
+are keyed by them.}
 
-\item{h_vec}{Numeric vector of bandwidths}
+\item{h_vec}{Numeric vector of bandwidths, in the units of the coordinate
+columns. See \code{\link{multiScaleAC}} on choosing these.}
 
-\item{perms}{Integer number of permutations}
+\item{...}{Additional arguments passed to \code{\link{multiScaleAC}}, for
+example \code{kernel}, \code{permute} or \code{nan_policy}.}
 
-\item{seed}{Integer random seed}
+\item{perms}{Integer number of permutations per sample.}
 
-\item{n_cores}{Integer number of CPU cores for parallel processing (default: 1 = sequential)}
+\item{seed}{Integer base seed. Sample \code{i} uses \code{seed + i}, so
+samples are not identically permuted while the batch stays reproducible.}
 
-\item{checkpoint_file}{Character path to checkpoint file (default: NULL = no checkpointing)}
+\item{n_cores}{Integer cores for parallel processing (default 1 = sequential).
+Parallelism uses forking and is therefore unavailable on Windows, where this
+falls back to sequential with a warning.}
 
-\item{coords_cols}{Character vector of two column names for coordinates (default: c("x", "y"))}
+\item{checkpoint_dir}{Character directory for per-sample checkpoint files
+(default NULL = no checkpointing).}
 
-\item{gene1_col}{Character column name for gene 1 (default: "CD274")}
+\item{coords_cols}{Character vector of two coordinate column names.}
 
-\item{gene2_col}{Character column name for gene 2 (default: "PDCD1")}
+\item{gene1_col, gene2_col}{Character column names for the two genes. These also
+become the gene names on each result.}
 
-\item{...}{Additional parameters passed to multiScaleAC()}
+\item{verbose}{Logical, report progress.}
 }
 \value{
-List of \linkS4class{kernelcomm_result} objects, one per sample
+Named list of \linkS4class{kernelcomm_result} objects, one per sample.
+  A sample that failed is \code{NULL} and is reported by a warning.
 }
 \description{
-Processes multiple samples in parallel or sequentially, returning a list of
-kernelcomm_result objects. Supports checkpointing for long-running batches.
+Runs \code{\link{multiScaleAC}} over many samples, sequentially or in
+parallel, with resumable checkpointing.
 }
+\section{Checkpointing}{
+
+Each sample is written to its own file in \code{checkpoint_dir}, named after its
+sample id. Resuming means skipping the samples whose files already exist, so an
+interrupted batch continues where it stopped and nothing is recomputed.
+
+Per-sample files replace an earlier design that kept one shared list and one
+shared file. That design lost every result under parallel processing, because
+\code{mclapply} forks and the worker's assignment into the parent's list was
+discarded, and all workers raced to write the same path.
+
+Files are removed only when every sample has succeeded, so a batch with
+failures stays resumable.
+}
+
+\section{Multiple testing across samples and pairs}{
+
+The manuscript applies its FDR threshold across gene pairs. To reproduce that,
+collect one p-value per pair from these results -- \code{sup_p_value} is the
+natural choice, since it summarises the whole curve -- and correct across the
+collection. Do not use \code{\link{adjust_pvalues}} for this: it corrects
+across the bandwidths within one result, which are strongly dependent.
+}
+
 \examples{
-\dontrun{
-# Prepare data for multiple samples
-data_list <- list(
-  sample1 = ccRCCExample,
-  sample2 = ccRCCExample  # In practice, different samples
-)
+# Split the bundled sample into pseudo-samples by field of view.
+data(ccRCCExample)
+fovs <- split(ccRCCExample, ccRCCExample$fov)
+fovs <- fovs[vapply(fovs, nrow, integer(1)) > 100][1:3]
 
-# Process all samples (sequential)
+# Bandwidths in millimetres, matching the coordinate units of this dataset.
 results <- multiScaleAC_batch(
-  data_list = data_list,
-  h_vec = c(10, 20, 40),
-  perms = 99
+  fovs, h_vec = c(0.02, 0.05, 0.1), perms = 99, verbose = FALSE
 )
+vapply(results, function(r) r@observed[1], numeric(1))
 
-# Process with parallel computing (4 cores)
-results_parallel <- multiScaleAC_batch(
-  data_list = data_list,
-  h_vec = c(10, 20, 40),
-  perms = 99,
-  n_cores = 4
-)
-
-# With checkpointing for very large batches
-results_checkpoint <- multiScaleAC_batch(
-  data_list = data_list,
-  h_vec = c(10, 20, 40),
-  checkpoint_file = "batch_checkpoint.rds"
+\dontrun{
+# In parallel, with a resumable checkpoint directory.
+results <- multiScaleAC_batch(
+  fovs, h_vec = c(0.02, 0.05, 0.1), perms = 999,
+  n_cores = 4, checkpoint_dir = tempfile("msac_ckpt_")
 )
 }
 

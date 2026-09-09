@@ -37,6 +37,34 @@ lag_sparse = function(W_sparse, scaled_gene2){
 # `lag_sparse` broke no caller and a deprecation shim would only reintroduce the misleading
 # registration that the rename removed.
 
+#' Unique labels for a list of results
+#'
+#' Internal. Prefers the list names, falls back to the \code{sample_id} slot, and de-duplicates
+#' whatever it ends up with.
+#'
+#' Results produced by \code{multiScaleAC()} directly all carry the default \code{sample_id}
+#' "sample1". Functions that used the slot alone therefore built duplicated factor levels from an
+#' unnamed list and failed. Only \code{multiScaleAC_batch()} assigns distinct ids.
+#'
+#' @param results List of kernelcomm_result objects.
+#' @return Character vector of unique labels, one per result.
+#' @keywords internal
+#' @noRd
+.result_labels <- function(results) {
+  lab <- names(results)
+  if (is.null(lab) || any(!nzchar(lab))) {
+    slot_ids <- vapply(results, function(r) r@sample_id, character(1))
+    if (is.null(lab)) lab <- slot_ids else lab[!nzchar(lab)] <- slot_ids[!nzchar(lab)]
+  }
+  if (anyDuplicated(lab)) {
+    # Suffix rather than error: a user comparing several results built ad hoc has done nothing wrong,
+    # and silently collapsing them would be worse than labelling them 1..n.
+    dup <- duplicated(lab) | duplicated(lab, fromLast = TRUE)
+    lab[dup] <- paste0(lab[dup], "_", seq_len(length(lab))[dup])
+  }
+  lab
+}
+
 # Global variables for ggplot2 and R CMD check
 utils::globalVariables(c(
   "null_lower", "null_upper", "h", "n_significant", "null", "perm", 

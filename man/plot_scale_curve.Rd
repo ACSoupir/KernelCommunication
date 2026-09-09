@@ -8,8 +8,8 @@ plot_scale_curve(
   result,
   type = "observed",
   show_permutations = FALSE,
-  alpha = 0.1,
-  ci_level = 0.95,
+  show_permutations_n = 100,
+  ribbon_alpha = 0.1,
   point_size = 2,
   line_width = 1,
   colors = NULL
@@ -20,16 +20,21 @@ plot_scale_curve(
 
 \item{type}{Character. One of:
 \itemize{
-  \item "observed": Plot observed Moran's I with CI bands (default)
-  \item "difference": Plot (observed - mean_permuted)
-  \item "zscore": Plot z-scores across bandwidths
+  \item "observed": observed Moran's I with the null envelope (default)
+  \item "difference": observed minus the permutation mean
+  \item "zscore": deviation standardised by the permutation standard deviation
 }}
 
-\item{show_permutations}{Logical. Show individual permutation curves? (default: FALSE)}
+\item{show_permutations}{Logical. Draw individual permutation curves behind the
+observed one (default FALSE). This is the most direct way to judge whether the
+observed curve is unusual.}
 
-\item{alpha}{Transparency for permutation lines (default: 0.1)}
+\item{show_permutations_n}{Integer, how many permutation curves to draw when
+\code{show_permutations = TRUE} (default 100). Drawing all of them is slow and
+illegible for large \code{perms}.}
 
-\item{ci_level}{Confidence level for bands (default: 0.95)}
+\item{ribbon_alpha}{Numeric transparency of the envelope (default 0.1). Named to
+avoid confusion with the significance threshold, which this is not.}
 
 \item{point_size}{Size of points (default: 2)}
 
@@ -44,12 +49,24 @@ ggplot2::ggplot object
 Creates ggplot2 visualization of Moran's I across bandwidths with
 permutation-based confidence bands.
 }
-\examples{
-\dontrun{
-result <- multiScaleAC(coords, gene1, gene2, h = seq(10, 80, 10))
-result <- compute_significance(result)
-plot_scale_curve(result)  # Default: observed with CI
-plot_scale_curve(result, type = "difference")  # Deviation from null
-plot_scale_curve(result, type = "zscore")  # Z-scores
+\details{
+The shaded band is the \emph{null envelope}: quantiles of the permutation
+distribution, showing where the statistic would fall under complete spatial
+randomness. It is not a confidence interval for the observed curve. Its width is
+set by \code{envelope_level} in \code{\link{compute_significance}}, not here.
 }
+\examples{
+set.seed(1)
+n <- 200
+coords <- matrix(runif(2 * n), ncol = 2)
+g1 <- rnorm(n)
+sm <- exp(-as.matrix(dist(coords))^2 / (2 * 0.1^2))
+g2 <- as.vector(sm \%*\% g1) / rowSums(sm) + rnorm(n, sd = 0.5)
+
+res <- multiScaleAC(coords, g1, g2, h = c(0.05, 0.1, 0.2), perms = 199)
+res <- compute_significance(res)
+
+plot_scale_curve(res)
+plot_scale_curve(res, type = "difference")
+plot_scale_curve(res, show_permutations = TRUE, show_permutations_n = 50)
 }

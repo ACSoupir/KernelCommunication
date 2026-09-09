@@ -14,18 +14,32 @@ export_mxfda_batch(results, sample_ids = NULL, interaction_names = NULL)
 \item{interaction_names}{Character vector of interaction names (optional, auto-generated if NULL)}
 }
 \value{
-data.frame with columns: sample_id, interaction_name, r, sumfun, csr, fundiff,
-        p_value, z_score, null_lower, null_upper
+A single data frame stacking the per-sample exports, with the column
+  set documented in \code{\link{export_mxfda}}. Binding is on a fixed column
+  set, so results with and without adjusted p-values combine without error.
 }
 \description{
 Converts a list of kernelcomm_result objects to a single data.frame
 compatible with mxfda::add_summary_function().
 }
 \examples{
-\dontrun{
-# Process multiple samples
-results <- multiScaleAC_batch(data_list, h_vec = c(10, 20, 40))
-mxfda_data <- export_mxfda_batch(results)
-# mxfda_obj <- mxfda::add_summary_function(mxfda_obj, mxfda_data, metric = "bivariate")
+set.seed(1)
+n <- 120
+mk <- function(seed) {
+  set.seed(seed)
+  co <- matrix(runif(2 * n), ncol = 2)
+  compute_significance(
+    multiScaleAC(co, rnorm(n), rnorm(n), h = c(0.05, 0.1), perms = 99, verbose = FALSE)
+  )
 }
+results <- list(A = mk(1), B = mk(2))
+
+# One has adjusted p-values, the other does not; the bind still succeeds.
+results$A <- adjust_pvalues(results$A)
+mx <- export_mxfda_batch(results)
+str(mx)
+}
+\seealso{
+\code{\link{export_mxfda}}, in particular its note on the bandwidth
+  occupying mxfda's radius column.
 }

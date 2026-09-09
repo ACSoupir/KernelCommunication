@@ -583,53 +583,73 @@ multiScaleAC <- function(coords,
 
 #' Batch Processing for Multiple Samples
 #'
-#' Processes multiple samples in parallel or sequentially, returning a list of
-#' kernelcomm_result objects. Supports checkpointing for long-running batches.
+#' Runs \code{\link{multiScaleAC}} over many samples, sequentially or in
+#' parallel, with resumable checkpointing.
 #'
-#' @param data_list List of data frames, each containing coordinates and gene expressions.
-#'   Each data frame must have columns specified in coords_cols, gene1_col, gene2_col.
-#' @param sample_ids Character vector of sample identifiers (optional, auto-generated if NULL)
-#' @param h_vec Numeric vector of bandwidths
-#' @param perms Integer number of permutations
-#' @param seed Integer random seed
-#' @param n_cores Integer number of CPU cores for parallel processing (default: 1 = sequential)
-#' @param checkpoint_file Character path to checkpoint file (default: NULL = no checkpointing)
-#' @param coords_cols Character vector of two column names for coordinates (default: c("x", "y"))
-#' @param gene1_col Character column name for gene 1 (default: "CD274")
-#' @param gene2_col Character column name for gene 2 (default: "PDCD1")
-#' @param ... Additional parameters passed to multiScaleAC()
+#' @section Checkpointing:
+#' Each sample is written to its own file in \code{checkpoint_dir}, named after its
+#' sample id. Resuming means skipping the samples whose files already exist, so an
+#' interrupted batch continues where it stopped and nothing is recomputed.
 #'
-#' @return List of \linkS4class{kernelcomm_result} objects, one per sample
+#' Per-sample files replace an earlier design that kept one shared list and one
+#' shared file. That design lost every result under parallel processing, because
+#' \code{mclapply} forks and the worker's assignment into the parent's list was
+#' discarded, and all workers raced to write the same path.
+#'
+#' Files are removed only when every sample has succeeded, so a batch with
+#' failures stays resumable.
+#'
+#' @section Multiple testing across samples and pairs:
+#' The manuscript applies its FDR threshold across gene pairs. To reproduce that,
+#' collect one p-value per pair from these results -- \code{sup_p_value} is the
+#' natural choice, since it summarises the whole curve -- and correct across the
+#' collection. Do not use \code{\link{adjust_pvalues}} for this: it corrects
+#' across the bandwidths within one result, which are strongly dependent.
+#'
+#' @param data_list List of data frames, each containing coordinates and gene
+#'   expression. Columns are checked for every sample before any computation
+#'   starts, so a missing column fails immediately rather than hours in.
+#' @param sample_ids Character vector of sample identifiers (optional,
+#'   auto-generated from names if NULL). Must be unique, since checkpoint files
+#'   are keyed by them.
+#' @param h_vec Numeric vector of bandwidths, in the units of the coordinate
+#'   columns. See \code{\link{multiScaleAC}} on choosing these.
+#' @param ... Additional arguments passed to \code{\link{multiScaleAC}}, for
+#'   example \code{kernel}, \code{permute} or \code{nan_policy}.
+#' @param perms Integer number of permutations per sample.
+#' @param seed Integer base seed. Sample \code{i} uses \code{seed + i}, so
+#'   samples are not identically permuted while the batch stays reproducible.
+#' @param n_cores Integer cores for parallel processing (default 1 = sequential).
+#'   Parallelism uses forking and is therefore unavailable on Windows, where this
+#'   falls back to sequential with a warning.
+#' @param checkpoint_dir Character directory for per-sample checkpoint files
+#'   (default NULL = no checkpointing).
+#' @param coords_cols Character vector of two coordinate column names.
+#' @param gene1_col,gene2_col Character column names for the two genes. These also
+#'   become the gene names on each result.
+#' @param verbose Logical, report progress.
+#'
+#' @return Named list of \linkS4class{kernelcomm_result} objects, one per sample.
+#'   A sample that failed is \code{NULL} and is reported by a warning.
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' # Prepare data for multiple samples
-#' data_list <- list(
-#'   sample1 = ccRCCExample,
-#'   sample2 = ccRCCExample  # In practice, different samples
-#' )
+#' # Split the bundled sample into pseudo-samples by field of view.
+#' data(ccRCCExample)
+#' fovs <- split(ccRCCExample, ccRCCExample$fov)
+#' fovs <- fovs[vapply(fovs, nrow, integer(1)) > 100][1:3]
 #'
-#' # Process all samples (sequential)
+#' # Bandwidths in millimetres, matching the coordinate units of this dataset.
 #' results <- multiScaleAC_batch(
-#'   data_list = data_list,
-#'   h_vec = c(10, 20, 40),
-#'   perms = 99
+#'   fovs, h_vec = c(0.02, 0.05, 0.1), perms = 99, verbose = FALSE
 #' )
+#' vapply(results, function(r) r@observed[1], numeric(1))
 #'
-#' # Process with parallel computing (4 cores)
-#' results_parallel <- multiScaleAC_batch(
-#'   data_list = data_list,
-#'   h_vec = c(10, 20, 40),
-#'   perms = 99,
-#'   n_cores = 4
-#' )
-#'
-#' # With checkpointing for very large batches
-#' results_checkpoint <- multiScaleAC_batch(
-#'   data_list = data_list,
-#'   h_vec = c(10, 20, 40),
-#'   checkpoint_file = "batch_checkpoint.rds"
+#' \dontrun{
+#' # In parallel, with a resumable checkpoint directory.
+#' results <- multiScaleAC_batch(
+#'   fovs, h_vec = c(0.02, 0.05, 0.1), perms = 999,
+#'   n_cores = 4, checkpoint_dir = tempfile("msac_ckpt_")
 #' )
 #' }
 #'
@@ -637,178 +657,162 @@ multiScaleAC <- function(coords,
 multiScaleAC_batch <- function(data_list,
                                 sample_ids = NULL,
                                 h_vec,
+                                ...,
                                 perms = 1000,
                                 seed = 333,
                                 n_cores = 1,
-                                checkpoint_file = NULL,
+                                checkpoint_dir = NULL,
                                 coords_cols = c("x", "y"),
                                 gene1_col = "CD274",
                                 gene2_col = "PDCD1",
-                                ...) {
-  
-  # Validate input list
+                                verbose = TRUE) {
+
   if (!is.list(data_list) || length(data_list) == 0) {
     stop("data_list must be a non-empty list")
   }
-  
-  # Auto-generate sample_ids if not provided
+  n_samples <- length(data_list)
+
   if (is.null(sample_ids)) {
     sample_ids <- names(data_list)
-    if (is.null(sample_ids) || all(sample_ids == "")) {
-      sample_ids <- paste0("sample", seq_along(data_list))
+    if (is.null(sample_ids) || all(!nzchar(sample_ids))) {
+      sample_ids <- paste0("sample", seq_len(n_samples))
     }
-  } else {
-    if (length(sample_ids) != length(data_list)) {
-      stop("sample_ids length must match data_list length")
+  } else if (length(sample_ids) != n_samples) {
+    stop("sample_ids length must match data_list length")
+  }
+  if (anyDuplicated(sample_ids)) {
+    stop("sample_ids must be unique; checkpoint files are keyed by them")
+  }
+
+  say <- function(...) if (verbose) message(...)
+
+  # Validate every sample's columns up front, before any computation. Previously the columns were
+  # subset before being checked, so a missing column produced "subscript out of bounds" and the three
+  # carefully written error messages below were unreachable -- and it failed only once that sample was
+  # reached, potentially hours into a batch.
+  required <- c(coords_cols, gene1_col, gene2_col)
+  for (i in seq_len(n_samples)) {
+    have <- colnames(data_list[[i]])
+    missing <- setdiff(required, have)
+    if (length(missing)) {
+      stop("sample ", sample_ids[i], " is missing column(s): ", paste(missing, collapse = ", "),
+           ". Available: ", paste(have, collapse = ", "))
     }
   }
-  
-  # Validate checkpoint_file if provided
-  if (!is.null(checkpoint_file)) {
-    if (!is.character(checkpoint_file) || length(checkpoint_file) != 1) {
-      stop("checkpoint_file must be a single character path")
+
+  # Checkpointing.
+  #
+  # The previous design kept one list and did `checkpoint[[i]] <<- result` inside the worker, then
+  # wrote the whole list to a single path. Under parallel::mclapply the workers are forked, so those
+  # superassignments were discarded, and every child raced to write the same file, leaving whichever
+  # finished last. It also resumed with `start_idx:n_samples`, which counts DOWN when start_idx is
+  # n_samples + 1, silently reprocessing the entire batch in reverse.
+  #
+  # Now each sample owns one file, named by its sample_id. Nothing is shared, so forks are safe, and
+  # resuming means simply skipping the samples whose files already exist.
+  use_ckpt <- !is.null(checkpoint_dir)
+  if (use_ckpt) {
+    if (!is.character(checkpoint_dir) || length(checkpoint_dir) != 1) {
+      stop("checkpoint_dir must be a single directory path")
+    }
+    dir.create(checkpoint_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+  ckpt_path <- function(i) {
+    file.path(checkpoint_dir, paste0("msac_", .sanitize_filename(sample_ids[i]), ".rds"))
+  }
+
+  done <- rep(FALSE, n_samples)
+  if (use_ckpt) {
+    done <- vapply(seq_len(n_samples), function(i) file.exists(ckpt_path(i)), logical(1))
+    if (any(done)) {
+      say("Resuming: ", sum(done), " of ", n_samples, " samples already complete")
     }
   }
-  
-  # Load checkpoint if exists
-  checkpoint <- NULL
-  if (!is.null(checkpoint_file) && file.exists(checkpoint_file)) {
-    cat("Loading checkpoint from", checkpoint_file, "\n")
-    checkpoint <- readRDS(checkpoint_file)
-    if (!is.list(checkpoint) || length(checkpoint) == 0) {
-      checkpoint <- NULL
-      cat("Checkpoint file is empty, starting fresh\n")
-    } else {
-      cat("Resuming from sample", length(checkpoint) + 1, "of", length(data_list), "\n")
-    }
-  }
-  
-  # Define worker function
+
   process_sample <- function(i) {
-    sample_id <- sample_ids[i]
+    if (done[i]) {
+      return(tryCatch(readRDS(ckpt_path(i)), error = function(e) {
+        warning("checkpoint for ", sample_ids[i], " is unreadable; recomputing", call. = FALSE)
+        NULL
+      }))
+    }
+    say("Processing ", i, "/", n_samples, ": ", sample_ids[i])
     data <- data_list[[i]]
-    
-    # Check if already processed (checkpoint)
-    if (!is.null(checkpoint) && i <= length(checkpoint)) {
-      cat("Skipping sample", i, "(", sample_id, "): already done\n")
-      return(checkpoint[[i]])
-    }
-    
-    cat("Processing sample", i, "of", length(data_list), ":", sample_id, "\n")
-    
-    # Extract coordinates and genes
-    coords <- as.matrix(data[, coords_cols, drop = FALSE])
-    gene1 <- data[[gene1_col]]
-    gene2 <- data[[gene2_col]]
-    
-    # Check required columns exist
-    if (!all(coords_cols %in% colnames(data))) {
-      stop("Sample ", sample_id, " missing coordinate columns: ", 
-           paste(setdiff(coords_cols, colnames(data)), collapse = ", "))
-    }
-    if (!gene1_col %in% colnames(data)) {
-      stop("Sample ", sample_id, " missing gene1 column: ", gene1_col)
-    }
-    if (!gene2_col %in% colnames(data)) {
-      stop("Sample ", sample_id, " missing gene2 column: ", gene2_col)
-    }
-    
-    # Run multiScaleAC
+
     result <- multiScaleAC(
-      coords = coords,
-      gene1 = gene1,
-      gene2 = gene2,
+      coords = as.matrix(data[, coords_cols, drop = FALSE]),
+      gene1 = data[[gene1_col]],
+      gene2 = data[[gene2_col]],
       h = h_vec,
-      perms = perms,
-      seed = seed + i,  # Different seed per sample
+      # A distinct seed per sample, so samples are not identically permuted, while the batch as a
+      # whole stays reproducible from `seed`.
+      perms = perms, seed = seed + i, verbose = FALSE,
       ...
     )
-    
-    # Update sample_id in result
-    result@sample_id <- sample_id
-    
-    # Save checkpoint if enabled
-    if (!is.null(checkpoint_file)) {
-      # Append to checkpoint
-      if (is.null(checkpoint)) {
-        checkpoint <- list()
-      }
-      checkpoint[[i]] <<- result
-      saveRDS(checkpoint, checkpoint_file)
-    }
-    
-    # Clear memory
-    gc()
-    
-    return(result)
+    result@sample_id <- sample_ids[i]
+    result@gene1_name <- gene1_col
+    result@gene2_name <- gene2_col
+
+    if (use_ckpt) saveRDS(result, ckpt_path(i))
+    result
   }
-  
-  # Process samples
-  n_samples <- length(data_list)
+
+  todo <- which(!done)
+  parallel_ok <- n_cores > 1 && .Platform$OS.type == "unix"
+  if (n_cores > 1 && !parallel_ok) {
+    warning("parallel processing uses forking, which is unavailable on this platform; ",
+            "running sequentially", call. = FALSE)
+  }
+
   results <- vector("list", n_samples)
-  
-  if (n_cores > 1 && .Platform$OS.type == "unix") {
-    # Parallel processing with mclapply (Unix/Mac only)
-    cat("Processing", n_samples, "samples in parallel with", n_cores, "cores\n")
-    
-    # Determine which samples to process
-    if (is.null(checkpoint)) {
-      indices <- seq_len(n_samples)
+
+  # Recover any completed samples first, whether or not anything remains to do.
+  for (i in which(done)) results[[i]] <- process_sample(i)
+
+  if (length(todo)) {
+    if (parallel_ok) {
+      say("Processing ", length(todo), " samples on ", n_cores, " cores")
+      got <- parallel::mclapply(todo, process_sample,
+                                mc.cores = min(n_cores, length(todo)),
+                                mc.preschedule = TRUE)
+      # mclapply reports a failed fork as a try-error rather than raising, so failures must be
+      # inspected instead of assumed away.
+      for (j in seq_along(todo)) {
+        if (inherits(got[[j]], "try-error") || is.null(got[[j]])) {
+          warning("sample ", sample_ids[todo[j]], " failed: ",
+                  as.character(got[[j]]), call. = FALSE)
+        } else {
+          results[[todo[j]]] <- got[[j]]
+        }
+      }
     } else {
-      indices <- seq(length(checkpoint) + 1, n_samples)
-      # Copy checkpoint results
-      for (i in seq_along(checkpoint)) {
-        results[[i]] <- checkpoint[[i]]
-      }
+      # seq_along, never start_idx:n_samples, which counts backwards when nothing is left to do.
+      for (i in todo) results[[i]] <- process_sample(i)
     }
-    
-    # Run parallel processing
-    parallel_results <- parallel::mclapply(
-      indices,
-      process_sample,
-      mc.cores = n_cores,
-      mc.preschedule = TRUE
-    )
-    
-    # Store results
-    for (j in seq_along(indices)) {
-      results[[indices[j]]] <- parallel_results[[j]]
-    }
-    
   } else {
-    # Sequential processing
-    if (n_cores > 1) {
-      warning("Parallel processing only supported on Unix/Mac. Using sequential processing.")
-    }
-    
-    cat("Processing", n_samples, "samples sequentially\n")
-    
-    # Determine starting index
-    start_idx <- 1
-    if (!is.null(checkpoint)) {
-      start_idx <- length(checkpoint) + 1
-      # Copy checkpoint results
-      for (i in seq_along(checkpoint)) {
-        results[[i]] <- checkpoint[[i]]
-      }
-    }
-    
-    # Run sequential processing
-    for (i in start_idx:n_samples) {
-      results[[i]] <- process_sample(i)
-    }
+    say("Nothing to do: every sample was already complete")
   }
-  
-  # Remove checkpoint file on successful completion
-  if (!is.null(checkpoint_file) && file.exists(checkpoint_file)) {
-    file.remove(checkpoint_file)
-    cat("Checkpoint file removed (batch complete)\n")
+
+  failed <- vapply(results, is.null, logical(1))
+  if (any(failed)) {
+    warning(sum(failed), " sample(s) produced no result: ",
+            paste(sample_ids[failed], collapse = ", "),
+            ". Checkpoint files are kept so the batch can be resumed.", call. = FALSE)
+  } else if (use_ckpt) {
+    unlink(vapply(seq_len(n_samples), ckpt_path, character(1)))
+    say("Checkpoint files removed (batch complete)")
   }
-  
-  # Name the results list
+
   names(results) <- sample_ids
-  
-  cat("Batch processing complete:", length(results), "samples processed\n")
-  
-  return(results)
+  say("Batch complete: ", sum(!failed), "/", n_samples, " samples")
+  results
+}
+
+
+#' Make a string safe to use in a file name
+#'
+#' @noRd
+.sanitize_filename <- function(x) {
+  x <- gsub("[^A-Za-z0-9._-]+", "_", x)
+  substr(x, 1, 100)
 }
