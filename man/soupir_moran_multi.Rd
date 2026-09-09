@@ -7,17 +7,17 @@
 soupir_moran_multi(coords, gene1, gene2, h_vec, perms, seed = 333)
 }
 \arguments{
-\item{coords}{numeric $n×2$ matrix of spatial coordinates (rows = cells)}
+\item{coords}{numeric matrix of spatial coordinates (rows = cells, 2 columns)}
 
 \item{gene1}{numeric vector of expression values for the first gene}
 
 \item{gene2}{numeric vector of expression values for the second gene}
 
-\item{perms}{integer number of random permutations (same set used for all $h$)}
+\item{h_vec}{numeric vector of Gaussian bandwidths}
+
+\item{perms}{integer number of random permutations (same set used for all bandwidths)}
 
 \item{seed}{integer random seed (single seed controls all permutations)}
-
-\item{h}{numeric vector of Gaussian bandwidths}
 }
 \value{
 A list with components
@@ -35,7 +35,7 @@ coords <- matrix(runif(2*n, -50, 50), ncol = 2)
 g1 <- rnorm(n)
 g2 <- rnorm(n)
 hvec <- c(5, 15, 30, 60)
-res <- soupir_moran_multi(g1, g2, coords, h = hvec,
+res <- soupir_moran_multi(coords, g1, g2, h_vec = hvec,
                           perms = 500, seed = 123)
 plot(hvec, res$observed, type = "b")
 

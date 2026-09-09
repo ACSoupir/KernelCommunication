@@ -8,12 +8,18 @@ Authors@R:
       person("Alex", "Soupir", , "alex.soupir@moffitt.org", role = c("aut", "cre"),
            comment = c(ORCID = "XX"))
     )
+Author: Alex Soupir
+Maintainer: Alex Soupir <alex.soupir@moffitt.org>
 Description: Provides an easy-to-use interface to calculate bivariate Moran's I. Weights are a function of the bandwidth of a gaussian kernel applied to the distance matrix.
 License: GPL (>= 2)
 Imports: Rcpp (>= 1.0.13),
-  Matrix
+  Matrix,
+  methods,
+  ggplot2,
+  stats,
+  utils
 LinkingTo: Rcpp, RcppEigen
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Depends: 
     R (>= 3.5)
 LazyData: true

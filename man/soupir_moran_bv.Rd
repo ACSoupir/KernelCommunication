@@ -17,7 +17,7 @@ soupir_moran_bv(h, coords, gene1, gene2, perms, eps = 0)
 
 \item{perms}{integer of permutations to compute the null distribution.}
 
-\item{epx}{numeric value for the lower end threshold of the gaussian kernel. Values below this will be ignored when calculating neighbor weights. Default is `0`, i.e. inclusion of all neighbors in weight matrix.}
+\item{eps}{numeric value for the lower end threshold of the gaussian kernel. Values below this will be ignored when calculating neighbor weights. Default is `0`, i.e. inclusion of all neighbors in weight matrix.}
 }
 \value{
 A list with two components:
@@ -31,12 +31,14 @@ Computes a bivariate kernel-based Moran's I statistic between two gene expressio
 The function returns the observed statistic and a distribution of permuted statistics to assess significance.
 }
 \examples{
+\dontrun{
 set.seed(42)
-coor = matrix(rnorm(20), ncol = 2))
+coor <- matrix(rnorm(20), ncol = 2)
 g1 <- rnorm(10)
 g2 <- rnorm(10)
 result <- soupir_moran_bv(h = 1.5, coords = coor, gene1 = g1, gene2 = g2, perms = 100)
 result$observed
 hist(result$permutations)
+}
 
 }

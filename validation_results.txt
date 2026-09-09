@@ -1,0 +1,30 @@
+VALIDATION RESULTS: multiScaleAC vs soupir_moran_bv
+Date: 2026-07-01 09:36:33 
+
+Dataset: ccRCCExample (7122 cells)
+Bandwidths:  10, 20, 40, 80 
+Permutations:  999 
+Seed:  333 
+
+RESULTS:
+--------
+Observed Moran's I match:     YES (max diff: 1.39e-18)
+Permutation values match:     YES (max diff: 1.34e-18)
+Empirical p-values match:     YES (max diff: 0.00e+00)
+
+Performance:
+  soupir_moran_bv time:  82.129 seconds
+  multiScaleAC time:     1.146 seconds
+  Speedup:               71.65x
+
+
+DETAILED COMPARISON:
+-------------------
+  bandwidth  observed_bv observed_multi   difference match
+1        10 3.855502e-06   3.855502e-06 4.218224e-19  TRUE
+2        20 2.422756e-06   2.422756e-06 2.752857e-20  TRUE
+3        40 2.064503e-06   2.064503e-06 1.390405e-18  TRUE
+4        80 1.974936e-06   1.974936e-06 6.606857e-20  TRUE
+
+
+OVERALL: PASSED

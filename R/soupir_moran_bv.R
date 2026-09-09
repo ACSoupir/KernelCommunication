@@ -8,7 +8,7 @@
 #' @param gene1 A numeric vector of expression values for the first gene (length equal to number of rows in `dist_matrix`).
 #' @param gene2 A numeric vector of expression values for the second gene.
 #' @param perms integer of permutations to compute the null distribution.
-#' @param epx numeric value for the lower end threshold of the gaussian kernel. Values below this will be ignored when calculating neighbor weights. Default is `0`, i.e. inclusion of all neighbors in weight matrix.
+#' @param eps numeric value for the lower end threshold of the gaussian kernel. Values below this will be ignored when calculating neighbor weights. Default is `0`, i.e. inclusion of all neighbors in weight matrix.
 #'
 #' @return A list with two components:
 #' \describe{
@@ -17,20 +17,21 @@
 #' }
 #'
 #' @examples
+#' \dontrun{
 #' set.seed(42)
-#' coor = matrix(rnorm(20), ncol = 2))
+#' coor <- matrix(rnorm(20), ncol = 2)
 #' g1 <- rnorm(10)
 #' g2 <- rnorm(10)
 #' result <- soupir_moran_bv(h = 1.5, coords = coor, gene1 = g1, gene2 = g2, perms = 100)
 #' result$observed
 #' hist(result$permutations)
+#' }
 #'
 #' @useDynLib KernelCommunication, .registration = TRUE
 #' @importFrom Rcpp evalCpp
 #' @export
 soupir_moran_bv <- function(h, coords, gene1, gene2, perms, eps = 0) {
   if(length(h) != 1) stop("`h` must be single value")
-  require(Matrix)
   g1_s = scale(gene1)
   g2_s = scale(gene2)
   denom = sum(g1_s^2)

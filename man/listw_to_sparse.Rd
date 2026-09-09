@@ -12,7 +12,7 @@ listw_to_sparse(listw, n)
 \item{n}{total number of cells in the sample}
 }
 \value{
-a sparse matrix representing {spdep} listw
+a sparse matrix representing \code{spdep} listw
 }
 \description{
 listw to Sparse Matrix

@@ -3,7 +3,7 @@
 #' @param listw list object of neighbor weights
 #' @param n total number of cells in the sample
 #'
-#' @returns a sparse matrix representing {spdep} listw
+#' @returns a sparse matrix representing \code{spdep} listw
 #' @export
 #'
 listw_to_sparse <- function(listw, n) {
@@ -24,7 +24,13 @@ listw_to_sparse <- function(listw, n) {
 #' @returns a matrix of lagged gene 2 values based on the sparse weight matrix
 #' @export
 #'
-lag.sparse = function(W_sparse, scaled_gene2){
+lag_sparse = function(W_sparse, scaled_gene2){
   as.matrix(W_sparse %*% scaled_gene2)
 }
+
+# Global variables for ggplot2 and R CMD check
+utils::globalVariables(c(
+  "ci_lower", "ci_upper", "h", "n_significant", "null", "perm", 
+  "sample_id", "value", "y"
+))
 

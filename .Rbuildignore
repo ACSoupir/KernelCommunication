@@ -1,3 +1,12 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^data-raw$
+^\.git$
+^\.gitignore$
+^.*\.DS_Store$
+^docs/.*\.DS_Store$
+^\.\.Rcheck$
+^R\.check$
+^check_output\.txt$
+^IMPLEMENTATION_COMPLETE\.md$
+^FEATURE_PLAN\.md$
