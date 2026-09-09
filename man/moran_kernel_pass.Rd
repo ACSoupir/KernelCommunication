@@ -13,7 +13,8 @@ moran_kernel_pass(
   dist_method = "euclidean",
   drop_isolated = TRUE,
   n_threads = 1L,
-  rowsums_only = FALSE
+  rowsums_only = FALSE,
+  p = 2
 )
 }
 \arguments{
@@ -27,9 +28,9 @@ moran_kernel_pass(
 \code{eps = 0} keeps every non-underflowed weight, which is the documented default and the
 condition under which this reduces exactly to the reference implementation.}
 
-\item{kernel}{"gaussian" or "uniform".}
+\item{kernel}{"gaussian", "uniform" or "exponential".}
 
-\item{dist_method}{"euclidean" or "manhattan".}
+\item{dist_method}{"euclidean", "manhattan" or "minkowski".}
 
 \item{drop_isolated}{When TRUE, cells with a zero row sum contribute nothing rather than
 producing a non-finite value. The caller uses this to implement nan_policy.}
@@ -39,6 +40,8 @@ producing a non-finite value. The caller uses this to implement nan_policy.}
 \item{rowsums_only}{When TRUE, skip the second pass and return the full row sum matrix instead
 of \code{V}. Used by \code{qc_neighborhoods()}, which needs the neighbourhood sizes but not
 the lagged gene.}
+
+\item{p}{Order of the Minkowski distance; ignored by the other metrics.}
 }
 \value{
 A list with \code{V} (n_h x N) or \code{rowsums} (n_h x N), plus

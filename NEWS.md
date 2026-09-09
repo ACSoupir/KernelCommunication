@@ -60,6 +60,12 @@ cells, so the sparse and dense paths disagreed on the row sums and therefore on
 - A `show` method, so printing a result no longer dumps the whole permutation
   matrix to the console.
 - README, this file, and `vignette("multiScaleAC")`.
+- An `"exponential"` kernel and a `"minkowski"` distance, both inside the same
+  tiled core as the existing options, so neither can bypass the `eps` predicate or
+  the zero-row-sum policy. `p = 1` and `p = 2` are routed to the Manhattan and
+  Euclidean paths, which compute the same thing without calling `pow()`.
+  `qc_neighborhoods()` accepts the new options, so a diagnostic always describes
+  the model actually being fitted.
 
 ## Changed
 

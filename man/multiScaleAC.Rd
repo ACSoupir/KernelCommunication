@@ -20,8 +20,8 @@ multiScaleAC(
   n_threads = 0,
   verbose = NULL,
   large_mode_n = NULL,
-  kernel = c("gaussian", "uniform"),
-  distance = c("euclidean", "manhattan")
+  kernel = c("gaussian", "uniform", "exponential"),
+  distance = c("euclidean", "manhattan", "minkowski")
 )
 }
 \arguments{
@@ -35,7 +35,11 @@ multiScaleAC(
 \code{coords} (must be > 0). See the bandwidth section below; choosing these
 on the wrong scale is the most common way to get a meaningless result.}
 
-\item{...}{additional parameters passed to distance and kernel functions (e.g., \code{p} for Minkowski distance)}
+\item{...}{additional parameters forwarded to the distance and kernel
+functions, and \code{p} for the built-in Minkowski distance. Note that
+\code{...} precedes every option in the signature, so options must be named
+exactly; that is what stops a parameter such as \code{p} from being
+partially matched against one of them.}
 
 \item{perms}{integer number of permutations (default: 1000). \code{0} is
 permitted and returns the observed curve with no permutation matrix.}
@@ -86,14 +90,16 @@ sparse code path, but the threshold was hard-coded in C++ and this argument
 was never read. There is now a single compute path whose working memory is
 O(N x length(h)) regardless of N, so no threshold is needed.}
 
-\item{kernel}{character or function. If character: built-in kernel ("gaussian" or "uniform").
-If function: custom kernel function with signature \code{kernel(dist_matrix, h, ...)} where
-\code{dist_matrix} is an N x N matrix of pairwise distances and \code{h} is the bandwidth.
-The function must return an N x N weight matrix (dense or sparse Matrix::dsCMatrix).}
+\item{kernel}{character or function. Built-in options are \code{"gaussian"}
+(the default, and the one the manuscript uses), \code{"uniform"} and
+\code{"exponential"}. If a function, a custom kernel with signature
+\code{kernel(dist_matrix, h, ...)} returning an N x N weight matrix.}
 
-\item{distance}{character or function. If character: built-in distance method ("euclidean" or "manhattan").
-If function: custom distance function with signature \code{distance(coords, ...)} where
-\code{coords} is an N x 2 matrix. The function must return an N x N distance matrix.}
+\item{distance}{character or function. Built-in options are
+\code{"euclidean"} (default), \code{"manhattan"} and \code{"minkowski"};
+the last takes its order from \code{p}. If a function, a custom distance
+with signature \code{distance(coords, ...)} returning an N x N distance
+matrix.}
 }
 \value{
 An S4 object of class \linkS4class{kernelcomm_result} with slots:
@@ -119,15 +125,34 @@ Inference is by permutation of the second gene.
 \details{
 \strong{Built-in Kernels:}
 \itemize{
-  \item \code{"gaussian"}: \eqn{w_{ij} = \exp(-d_{ij}^2 / (2h^2))} where \eqn{d_{ij}} is the distance
-  \item \code{"uniform"}: \eqn{w_{ij} = 1} if \eqn{d_{ij} \le h}, else 0
+  \item \code{"gaussian"}: \eqn{w_{ij} = \exp(-d_{ij}^2 / (2h^2))}. The
+    default, and the kernel the manuscript uses. Unbounded support, so every
+    pair contributes.
+  \item \code{"uniform"}: \eqn{w_{ij} = 1} if \eqn{d_{ij} \le h}, else 0.
+    A hard radius, so cells can genuinely have no neighbours; see
+    \code{nan_policy}.
+  \item \code{"exponential"}: \eqn{w_{ij} = \exp(-d_{ij} / h)}. Heavier
+    tailed than the Gaussian at the same bandwidth, so a given \code{h} reaches
+    further.
 }
+
+The diagonal is always zero: a cell is not its own neighbour, which for single
+cells is not a meaningful notion. Row sums are normalised to 1, so \eqn{I(h)}
+stays bounded and every cell contributes equally regardless of local density.
 
 \strong{Built-in Distance Methods:}
 \itemize{
   \item \code{"euclidean"}: \eqn{\sqrt{(x_i - x_j)^2 + (y_i - y_j)^2}}
   \item \code{"manhattan"}: \eqn{|x_i - x_j| + |y_i - y_j|}
+  \item \code{"minkowski"}: \eqn{(|x_i - x_j|^p + |y_i - y_j|^p)^{1/p}},
+    with \code{p} passed through \code{...}. \code{p = 1} and \code{p = 2}
+    are routed to the Manhattan and Euclidean paths, which compute the same
+    thing without calling \code{pow()}.
 }
+
+All combinations run inside the same tiled core, so none of them can bypass the
+\code{eps} predicate or the zero-row-sum policy. Only a user-supplied
+\emph{function} takes the R fallback path.
 
 \strong{Custom Kernel Functions:}
 Custom kernel functions must have signature: \code{kernel(dist_matrix, h, ...)} where:

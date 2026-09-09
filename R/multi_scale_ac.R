@@ -49,14 +49,20 @@
 #'   sparse code path, but the threshold was hard-coded in C++ and this argument
 #'   was never read. There is now a single compute path whose working memory is
 #'   O(N x length(h)) regardless of N, so no threshold is needed.
-#' @param kernel character or function. If character: built-in kernel ("gaussian" or "uniform").
-#'   If function: custom kernel function with signature \code{kernel(dist_matrix, h, ...)} where
-#'   \code{dist_matrix} is an N x N matrix of pairwise distances and \code{h} is the bandwidth.
-#'   The function must return an N x N weight matrix (dense or sparse Matrix::dsCMatrix).
-#' @param distance character or function. If character: built-in distance method ("euclidean" or "manhattan").
-#'   If function: custom distance function with signature \code{distance(coords, ...)} where
-#'   \code{coords} is an N x 2 matrix. The function must return an N x N distance matrix.
-#' @param ... additional parameters passed to distance and kernel functions (e.g., \code{p} for Minkowski distance)
+#' @param kernel character or function. Built-in options are \code{"gaussian"}
+#'   (the default, and the one the manuscript uses), \code{"uniform"} and
+#'   \code{"exponential"}. If a function, a custom kernel with signature
+#'   \code{kernel(dist_matrix, h, ...)} returning an N x N weight matrix.
+#' @param distance character or function. Built-in options are
+#'   \code{"euclidean"} (default), \code{"manhattan"} and \code{"minkowski"};
+#'   the last takes its order from \code{p}. If a function, a custom distance
+#'   with signature \code{distance(coords, ...)} returning an N x N distance
+#'   matrix.
+#' @param ... additional parameters forwarded to the distance and kernel
+#'   functions, and \code{p} for the built-in Minkowski distance. Note that
+#'   \code{...} precedes every option in the signature, so options must be named
+#'   exactly; that is what stops a parameter such as \code{p} from being
+#'   partially matched against one of them.
 #'
 #' @return An S4 object of class \linkS4class{kernelcomm_result} with slots:
 #' \describe{
@@ -76,15 +82,34 @@
 #' @details
 #' \strong{Built-in Kernels:}
 #' \itemize{
-#'   \item \code{"gaussian"}: \eqn{w_{ij} = \exp(-d_{ij}^2 / (2h^2))} where \eqn{d_{ij}} is the distance
-#'   \item \code{"uniform"}: \eqn{w_{ij} = 1} if \eqn{d_{ij} \le h}, else 0
+#'   \item \code{"gaussian"}: \eqn{w_{ij} = \exp(-d_{ij}^2 / (2h^2))}. The
+#'     default, and the kernel the manuscript uses. Unbounded support, so every
+#'     pair contributes.
+#'   \item \code{"uniform"}: \eqn{w_{ij} = 1} if \eqn{d_{ij} \le h}, else 0.
+#'     A hard radius, so cells can genuinely have no neighbours; see
+#'     \code{nan_policy}.
+#'   \item \code{"exponential"}: \eqn{w_{ij} = \exp(-d_{ij} / h)}. Heavier
+#'     tailed than the Gaussian at the same bandwidth, so a given \code{h} reaches
+#'     further.
 #' }
+#'
+#' The diagonal is always zero: a cell is not its own neighbour, which for single
+#' cells is not a meaningful notion. Row sums are normalised to 1, so \eqn{I(h)}
+#' stays bounded and every cell contributes equally regardless of local density.
 #'
 #' \strong{Built-in Distance Methods:}
 #' \itemize{
 #'   \item \code{"euclidean"}: \eqn{\sqrt{(x_i - x_j)^2 + (y_i - y_j)^2}}
 #'   \item \code{"manhattan"}: \eqn{|x_i - x_j| + |y_i - y_j|}
+#'   \item \code{"minkowski"}: \eqn{(|x_i - x_j|^p + |y_i - y_j|^p)^{1/p}},
+#'     with \code{p} passed through \code{...}. \code{p = 1} and \code{p = 2}
+#'     are routed to the Manhattan and Euclidean paths, which compute the same
+#'     thing without calling \code{pow()}.
 #' }
+#'
+#' All combinations run inside the same tiled core, so none of them can bypass the
+#' \code{eps} predicate or the zero-row-sum policy. Only a user-supplied
+#' \emph{function} takes the R fallback path.
 #'
 #' \strong{Custom Kernel Functions:}
 #' Custom kernel functions must have signature: \code{kernel(dist_matrix, h, ...)} where:
@@ -187,8 +212,8 @@ multiScaleAC <- function(coords,
                          n_threads = 0,
                          verbose = NULL,
                          large_mode_n = NULL,
-                         kernel = c("gaussian", "uniform"),
-                         distance = c("euclidean", "manhattan")) {
+                         kernel = c("gaussian", "uniform", "exponential"),
+                         distance = c("euclidean", "manhattan", "minkowski")) {
 
   # Capture additional parameters
   extra_params <- list(...)
@@ -257,7 +282,8 @@ multiScaleAC <- function(coords,
       kernel        = kernel,
       dist_method   = distance,
       drop_isolated = TRUE,
-      n_threads     = if (n_threads > 0) as.integer(n_threads) else moran_max_threads()
+      n_threads     = if (n_threads > 0) as.integer(n_threads) else moran_max_threads(),
+      p             = if (!is.null(extra_params$p)) as.numeric(extra_params$p) else 2
     )
     V <- pass$V
     n_isolated <- pass$n_isolated
@@ -386,8 +412,8 @@ multiScaleAC <- function(coords,
 
   # Validate kernel
   if (!kernel_is_custom) {
-    if (!kernel %in% c("gaussian", "uniform")) {
-      stop("kernel must be 'gaussian', 'uniform', or a function")
+    if (!kernel %in% c("gaussian", "uniform", "exponential")) {
+      stop("kernel must be 'gaussian', 'uniform', 'exponential', or a function")
     }
   } else {
     # kernel is already verified to be a function
@@ -395,8 +421,8 @@ multiScaleAC <- function(coords,
 
   # Validate distance
   if (!distance_is_custom) {
-    if (!distance %in% c("euclidean", "manhattan")) {
-      stop("distance must be 'euclidean', 'manhattan', or a function")
+    if (!distance %in% c("euclidean", "manhattan", "minkowski")) {
+      stop("distance must be 'euclidean', 'manhattan', 'minkowski', or a function")
     }
   } else {
     # distance is already verified to be a function
@@ -465,6 +491,7 @@ multiScaleAC <- function(coords,
 .compute_custom_kernel_moran <- function(coords, gene1, h_vec, eps,
                                          distance, kernel, extra_params,
                                          verbose) {
+  p_order <- if (!is.null(extra_params$p)) as.numeric(extra_params$p) else 2
 
   N <- nrow(coords)
   n_h <- length(h_vec)
@@ -476,7 +503,11 @@ multiScaleAC <- function(coords,
     dist_matrix <- do.call(distance, c(list(coords), dist_params))
     dist_matrix <- as.matrix(dist_matrix)
   } else {
-    dist_matrix <- as.matrix(dist(coords, method = distance))
+    dist_matrix <- if (identical(distance, "minkowski")) {
+      as.matrix(stats::dist(coords, method = "minkowski", p = p_order))
+    } else {
+      as.matrix(stats::dist(coords, method = distance))
+    }
   }
 
   if (!is.matrix(dist_matrix) || nrow(dist_matrix) != N || ncol(dist_matrix) != N) {
@@ -504,6 +535,8 @@ multiScaleAC <- function(coords,
       W <- exp(-dist_matrix^2 / (2 * h^2))
     } else if (kernel == "uniform") {
       W <- (dist_matrix <= h) * 1.0
+    } else if (kernel == "exponential") {
+      W <- exp(-dist_matrix / h)
     } else {
       stop("unsupported kernel: ", kernel)
     }

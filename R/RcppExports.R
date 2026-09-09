@@ -16,8 +16,9 @@ gaussian_kernel_weights <- function(coords, h, eps = 1e-15) {
 #' @param eps Weights are kept when \code{w > eps}, and excluded from the row sum otherwise.
 #'   \code{eps = 0} keeps every non-underflowed weight, which is the documented default and the
 #'   condition under which this reduces exactly to the reference implementation.
-#' @param kernel "gaussian" or "uniform".
-#' @param dist_method "euclidean" or "manhattan".
+#' @param kernel "gaussian", "uniform" or "exponential".
+#' @param dist_method "euclidean", "manhattan" or "minkowski".
+#' @param p Order of the Minkowski distance; ignored by the other metrics.
 #' @param drop_isolated When TRUE, cells with a zero row sum contribute nothing rather than
 #'   producing a non-finite value. The caller uses this to implement nan_policy.
 #' @param n_threads Requested OpenMP threads; ignored when built without OpenMP support.
@@ -28,8 +29,8 @@ gaussian_kernel_weights <- function(coords, h, eps = 1e-15) {
 #' @return A list with \code{V} (n_h x N) or \code{rowsums} (n_h x N), plus
 #'   \code{rowsum_mean}, \code{rowsum_min}, \code{n_isolated} and \code{h}.
 #' @keywords internal
-moran_kernel_pass <- function(coords, gene1, h_vec, eps = 0.0, kernel = "gaussian", dist_method = "euclidean", drop_isolated = TRUE, n_threads = 1L, rowsums_only = FALSE) {
-    .Call(`_multiScaleAC_moran_kernel_pass`, coords, gene1, h_vec, eps, kernel, dist_method, drop_isolated, n_threads, rowsums_only)
+moran_kernel_pass <- function(coords, gene1, h_vec, eps = 0.0, kernel = "gaussian", dist_method = "euclidean", drop_isolated = TRUE, n_threads = 1L, rowsums_only = FALSE, p = 2.0) {
+    .Call(`_multiScaleAC_moran_kernel_pass`, coords, gene1, h_vec, eps, kernel, dist_method, drop_isolated, n_threads, rowsums_only, p)
 }
 
 #' Nearest-neighbour distance for every point

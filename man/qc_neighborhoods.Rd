@@ -7,9 +7,10 @@
 qc_neighborhoods(
   coords,
   h,
-  kernel = c("gaussian", "uniform"),
-  distance = c("euclidean", "manhattan"),
-  eps = 0
+  kernel = c("gaussian", "uniform", "exponential"),
+  distance = c("euclidean", "manhattan", "minkowski"),
+  eps = 0,
+  p = 2
 )
 }
 \arguments{
@@ -18,12 +19,16 @@ qc_neighborhoods(
 \item{h}{Bandwidth, or a vector of bandwidths. A vector previously recycled
 silently against the distance matrix and returned meaningless numbers.}
 
-\item{kernel}{Character. "gaussian" or "uniform", matching what you will pass
-to \code{\link{multiScaleAC}}.}
+\item{kernel}{Character. "gaussian", "uniform" or "exponential", matching what
+you will pass to \code{\link{multiScaleAC}}. It must match, or the
+diagnostic describes a different model from the one you fit.}
 
-\item{distance}{Character. "euclidean" or "manhattan".}
+\item{distance}{Character. "euclidean", "manhattan" or "minkowski".}
 
 \item{eps}{Weight threshold, matching \code{\link{multiScaleAC}}.}
+
+\item{p}{Order of the Minkowski distance, matching
+\code{\link{multiScaleAC}}.}
 }
 \value{
 A data frame with one row per bandwidth:

@@ -213,10 +213,13 @@ suggest_bandwidths <- function(coords, n_bandwidths = 5,
 #' @param coords Coordinates matrix (N x 2)
 #' @param h Bandwidth, or a vector of bandwidths. A vector previously recycled
 #'   silently against the distance matrix and returned meaningless numbers.
-#' @param kernel Character. "gaussian" or "uniform", matching what you will pass
-#'   to \code{\link{multiScaleAC}}.
-#' @param distance Character. "euclidean" or "manhattan".
+#' @param kernel Character. "gaussian", "uniform" or "exponential", matching what
+#'   you will pass to \code{\link{multiScaleAC}}. It must match, or the
+#'   diagnostic describes a different model from the one you fit.
+#' @param distance Character. "euclidean", "manhattan" or "minkowski".
 #' @param eps Weight threshold, matching \code{\link{multiScaleAC}}.
+#' @param p Order of the Minkowski distance, matching
+#'   \code{\link{multiScaleAC}}.
 #'
 #' @return A data frame with one row per bandwidth:
 #'   \item{h}{The bandwidth}
@@ -239,9 +242,10 @@ suggest_bandwidths <- function(coords, n_bandwidths = 5,
 #' qc_neighborhoods(coords, h = c(0.01, 0.05, 0.25, 25))
 #' # The last row has saturation near 1 -- that bandwidth cannot detect anything.
 qc_neighborhoods <- function(coords, h,
-                             kernel = c("gaussian", "uniform"),
-                             distance = c("euclidean", "manhattan"),
-                             eps = 0) {
+                             kernel = c("gaussian", "uniform", "exponential"),
+                             distance = c("euclidean", "manhattan", "minkowski"),
+                             eps = 0,
+                             p = 2) {
   kernel <- match.arg(kernel)
   distance <- match.arg(distance)
 
@@ -260,7 +264,7 @@ qc_neighborhoods <- function(coords, h,
   pass <- moran_kernel_pass(
     coords = xy, gene1 = rep(0, N), h_vec = as.numeric(h),
     eps = eps, kernel = kernel, dist_method = distance,
-    n_threads = moran_max_threads(), rowsums_only = TRUE
+    n_threads = moran_max_threads(), rowsums_only = TRUE, p = p
   )
 
   rs <- pass$rowsums                      # n_h x N
