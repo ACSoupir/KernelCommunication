@@ -30,6 +30,16 @@
 #' @slot p_adjusted Numeric vector, p-values after multiple-testing correction
 #' @slot sup_statistic Numeric scalar, whole-curve supremum statistic
 #' @slot sup_p_value Numeric scalar, p-value for the whole curve
+#' @slot moment_var Numeric vector, exact variance of the permutation null. Exact,
+#'   not estimated: see \code{\link{multiScaleAC}}.
+#' @slot moment_skewness Numeric vector, exact skewness of the permutation null
+#' @slot moment_excess_kurtosis Numeric vector, exact excess kurtosis of the
+#'   permutation null
+#' @slot leverage Numeric vector, largest single cell's share of the null
+#'   variance. Values near 1 mean one cell dominates and no continuous
+#'   approximation to the null can be trusted at that bandwidth.
+#' @slot moment_cov Matrix, exact cross-bandwidth covariance of the null
+#' @slot p_method Character vector recording which method produced each p-value
 #'
 #' @section Uncomputed slots:
 #' Optional slots are zero-length vectors until computed, not \code{NA}. So
@@ -64,7 +74,19 @@ setClass("kernelcomm_result",
 
     # Whole-curve test: scalars, not per-bandwidth
     sup_statistic = "vector",
-    sup_p_value = "vector"
+    sup_p_value = "vector",
+
+    # Exact analytical moments of the permutation null. Populated by multiScaleAC() whenever
+    # moments = TRUE, independently of whether any permutations were drawn.
+    moment_var = "vector",
+    moment_skewness = "vector",
+    moment_excess_kurtosis = "vector",
+    leverage = "vector",
+    moment_cov = "matrix",
+
+    # Per-bandwidth record of which method produced each p-value, so a mixed result is
+    # self-documenting rather than requiring the user to remember what was requested.
+    p_method = "vector"
   )
 )
 
@@ -75,7 +97,8 @@ setClass("kernelcomm_result",
 .sig_slot_groups <- list(
   permutation_inference = c("p_values", "z_scores", "perm_mean", "perm_sd",
                             "null_lower", "null_upper", "significant"),
-  supremum = c("sup_statistic", "sup_p_value")
+  supremum = c("sup_statistic", "sup_p_value"),
+  moments = c("moment_var", "moment_skewness", "moment_excess_kurtosis", "leverage")
 )
 
 #' Validity check for kernelcomm_result
@@ -118,7 +141,9 @@ setValidity("kernelcomm_result", function(object) {
 
   # Per-bandwidth slots must be per-bandwidth.
   for (s in c("p_values", "z_scores", "perm_mean", "perm_sd",
-              "null_lower", "null_upper", "significant", "p_adjusted")) {
+              "null_lower", "null_upper", "significant", "p_adjusted",
+              "moment_var", "moment_skewness", "moment_excess_kurtosis",
+              "leverage", "p_method")) {
     v <- slot(object, s)
     if (length(v) > 0L && length(v) != n_h) {
       return(paste0("'", s, "' must have one value per bandwidth"))

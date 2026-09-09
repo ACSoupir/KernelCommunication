@@ -208,6 +208,44 @@ test_that("a custom distance with a built-in kernel works", {
   expect_equal(viaR@permutations, builtin@permutations, tolerance = REFERENCE_TOLERANCE)
 })
 
+test_that("a user parameter cannot be captured by partial matching against an option", {
+  # `...` forwards parameters to user kernel and distance functions. R only enforces exact name
+  # matching for formals declared AFTER `...`, so when the options sat before it, `p = 3` for a
+  # Minkowski distance was partially matched against `perms`/`permute` and the call failed -- and
+  # `p = 3` is the example in multiScaleAC()'s own documentation. `...` now precedes every option.
+  set.seed(53); n <- 100
+  coords <- matrix(runif(2 * n), ncol = 2)
+  g1 <- rnorm(n); g2 <- rnorm(n)
+
+  minkowski_dist <- function(coords, p = 3) {
+    as.matrix(stats::dist(coords, method = "minkowski", p = p))
+  }
+  expect_silent(
+    res <- multiScaleAC(coords, g1, g2, h = 0.1, distance = minkowski_dist, p = 3,
+                        perms = 5, seed = 1, verbose = FALSE)
+  )
+  expect_true(is.finite(res@observed))
+
+  # `p` really was forwarded, not swallowed: p = 2 is Euclidean and must match the built-in path,
+  # while p = 6 must not.
+  builtin <- multiScaleAC(coords, g1, g2, h = 0.1, perms = 5, seed = 1, verbose = FALSE)
+  p2 <- multiScaleAC(coords, g1, g2, h = 0.1, distance = minkowski_dist, p = 2,
+                     perms = 5, seed = 1, verbose = FALSE)
+  p6 <- multiScaleAC(coords, g1, g2, h = 0.1, distance = minkowski_dist, p = 6,
+                     perms = 5, seed = 1, verbose = FALSE)
+  expect_equal(p2@observed, builtin@observed, tolerance = REFERENCE_TOLERANCE)
+  expect_false(isTRUE(all.equal(p6@observed, builtin@observed)))
+
+  # Other single-letter names that prefix an option must be forwarded too.
+  odd_kernel <- function(dist_matrix, h, m = 2, n = 1, e = 1, s = 1, b = 1, v = 1) {
+    exp(-(dist_matrix / h)^m) * n * e * s * b * v
+  }
+  expect_silent(
+    multiScaleAC(coords, g1, g2, h = 0.1, kernel = odd_kernel, m = 2, n = 1, e = 1,
+                 s = 1, b = 1, v = 1, perms = 5, seed = 1, verbose = FALSE)
+  )
+})
+
 test_that("a custom kernel has no self-weight, matching the built-in path", {
   # The custom path never zeroed the diagonal, so a kernel returning exp(0) = 1 there gave every
   # cell a self-weight. Custom results were on a different scale from built-in ones and silently not

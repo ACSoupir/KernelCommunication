@@ -9,17 +9,19 @@ multiScaleAC(
   gene1,
   gene2,
   h,
+  ...,
   perms = 1000,
   seed = 333,
   eps = 0,
   nan_policy = c("zero", "drop", "na"),
+  moments = TRUE,
+  permute = c("all", "flagged", "none"),
   batch_size = 256,
   n_threads = 0,
   verbose = NULL,
   large_mode_n = NULL,
   kernel = c("gaussian", "uniform"),
-  distance = c("euclidean", "manhattan"),
-  ...
+  distance = c("euclidean", "manhattan")
 )
 }
 \arguments{
@@ -32,6 +34,8 @@ multiScaleAC(
 \item{h}{numeric vector of kernel bandwidths, in the same units as
 \code{coords} (must be > 0). See the bandwidth section below; choosing these
 on the wrong scale is the most common way to get a meaningless result.}
+
+\item{...}{additional parameters passed to distance and kernel functions (e.g., \code{p} for Minkowski distance)}
 
 \item{perms}{integer number of permutations (default: 1000). \code{0} is
 permitted and returns the observed curve with no permutation matrix.}
@@ -50,6 +54,22 @@ no neighbours carrying weight. \code{"zero"} (default) reproduces the
 reference implementation, which reports 0 for the whole affected bandwidth;
 \code{"drop"} excludes only the isolated cells; \code{"na"} reports
 \code{NA} so the situation cannot pass unnoticed. All three warn.}
+
+\item{moments}{logical, compute the exact analytical moments of the
+permutation null (default TRUE). These cost O(N) per bandwidth on top of work
+already done, so they are essentially free, and they are \emph{exact} rather
+than estimated: the statistic is a linear permutation statistic, whose
+moments have closed forms. They enable \code{method = "moment"} in
+\code{\link{compute_significance}} and populate \code{leverage}, which
+reports whether a continuous approximation to the null is trustworthy at each
+bandwidth.}
+
+\item{permute}{character, how much permuting to do. \code{"all"} (default)
+permutes at every bandwidth. \code{"flagged"} permutes only where the
+moment diagnostics say a continuous approximation cannot be trusted, using
+the exact moments elsewhere; this is what turns permutations from the bulk
+cost into a targeted safety net. \code{"none"} skips them entirely and forces
+\code{perms = 0}.}
 
 \item{batch_size}{integer permutations contracted per batch (default: 256).
 Bounds peak memory at N x \code{batch_size} instead of N x \code{perms};
@@ -74,8 +94,6 @@ The function must return an N x N weight matrix (dense or sparse Matrix::dsCMatr
 \item{distance}{character or function. If character: built-in distance method ("euclidean" or "manhattan").
 If function: custom distance function with signature \code{distance(coords, ...)} where
 \code{coords} is an N x 2 matrix. The function must return an N x N distance matrix.}
-
-\item{...}{additional parameters passed to distance and kernel functions (e.g., \code{p} for Minkowski distance)}
 }
 \value{
 An S4 object of class \linkS4class{kernelcomm_result} with slots:

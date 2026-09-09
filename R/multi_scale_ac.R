@@ -24,6 +24,20 @@
 #'   reference implementation, which reports 0 for the whole affected bandwidth;
 #'   \code{"drop"} excludes only the isolated cells; \code{"na"} reports
 #'   \code{NA} so the situation cannot pass unnoticed. All three warn.
+#' @param moments logical, compute the exact analytical moments of the
+#'   permutation null (default TRUE). These cost O(N) per bandwidth on top of work
+#'   already done, so they are essentially free, and they are \emph{exact} rather
+#'   than estimated: the statistic is a linear permutation statistic, whose
+#'   moments have closed forms. They enable \code{method = "moment"} in
+#'   \code{\link{compute_significance}} and populate \code{leverage}, which
+#'   reports whether a continuous approximation to the null is trustworthy at each
+#'   bandwidth.
+#' @param permute character, how much permuting to do. \code{"all"} (default)
+#'   permutes at every bandwidth. \code{"flagged"} permutes only where the
+#'   moment diagnostics say a continuous approximation cannot be trusted, using
+#'   the exact moments elsewhere; this is what turns permutations from the bulk
+#'   cost into a targeted safety net. \code{"none"} skips them entirely and forces
+#'   \code{perms = 0}.
 #' @param batch_size integer permutations contracted per batch (default: 256).
 #'   Bounds peak memory at N x \code{batch_size} instead of N x \code{perms};
 #'   results are unaffected.
@@ -148,26 +162,40 @@
 #' supported and is not deprecated.
 #'
 #' @export
+# NOTE ON THE SIGNATURE: `...` sits immediately after `h`, before every option.
+#
+# That placement is deliberate and load-bearing. `...` forwards parameters to user-supplied kernel and
+# distance functions, and R only requires exact name matching for formals that appear AFTER `...`.
+# With the options before it, a user passing `p = 3` for a Minkowski distance -- which is the example
+# in this function's own documentation -- had that argument partially matched against `perms` and
+# `permute` instead of being forwarded, and the call failed. Moving `...` forward makes every option
+# exact-match-only, so no user parameter name can ever be captured by one.
+#
+# The consequence is that options must be named, which they should be anyway.
 multiScaleAC <- function(coords,
                          gene1,
                          gene2,
                          h,
+                         ...,
                          perms = 1000,
                          seed = 333,
                          eps = 0,
                          nan_policy = c("zero", "drop", "na"),
+                         moments = TRUE,
+                         permute = c("all", "flagged", "none"),
                          batch_size = 256,
                          n_threads = 0,
                          verbose = NULL,
                          large_mode_n = NULL,
                          kernel = c("gaussian", "uniform"),
-                         distance = c("euclidean", "manhattan"),
-                         ...) {
+                         distance = c("euclidean", "manhattan")) {
 
   # Capture additional parameters
   extra_params <- list(...)
 
   nan_policy <- match.arg(nan_policy)
+  permute <- match.arg(permute)
+  if (permute == "none") perms <- 0L
 
   # Validate and normalize kernel parameter
   kernel_is_custom <- is.function(kernel)
@@ -244,14 +272,54 @@ multiScaleAC <- function(coords,
     n_isolated <- custom$n_isolated
   }
 
-  res <- .contract_permutations(V, g2_s, denom, perms, seed, batch_size)
+  # Exact moments of the permutation null. O(N) per bandwidth on top of V, which is already in hand,
+  # so this is effectively free and is computed unless explicitly declined.
+  mom <- if (isTRUE(moments)) .permutation_moments(V, g2_s, denom) else NULL
+
+  # `permute` decides how much permuting to do. "flagged" is the point of the moment work: draw
+  # permutations only where the diagnostics say a continuous approximation to the null cannot be
+  # trusted, and rely on the exact moments elsewhere. V is still alive here, so a fallback never
+  # rebuilds the kernel.
+  keep_h <- switch(
+    permute,
+    all     = rep(TRUE, length(h_clean)),
+    none    = rep(FALSE, length(h_clean)),
+    flagged = if (is.null(mom)) rep(TRUE, length(h_clean)) else .flag_untrustworthy(mom)
+  )
+  if (permute == "flagged" && verbose) {
+    message(sprintf("Permuting %d of %d bandwidths flagged as unsuitable for moment-based inference",
+                    sum(keep_h), length(keep_h)))
+  }
+
+  n_perm_eff <- if (any(keep_h)) perms else 0L
+  if (n_perm_eff > 0 && !all(keep_h)) {
+    # Contract only the flagged rows, then place them back so the matrix stays n_h x perms with
+    # NA marking bandwidths that were deliberately not permuted.
+    sub <- .contract_permutations(V[keep_h, , drop = FALSE], g2_s, denom,
+                                  n_perm_eff, seed, batch_size)
+    res <- list(observed = as.vector(V %*% g2_s) / denom,
+                permutations = matrix(NA_real_, length(h_clean), n_perm_eff))
+    res$permutations[keep_h, ] <- sub$permutations
+  } else {
+    res <- .contract_permutations(V, g2_s, denom, n_perm_eff, seed, batch_size)
+  }
+
   res <- .apply_nan_policy(res, n_isolated, h_clean,
                            degenerate_input = FALSE, policy = nan_policy)
 
   result <- list(h = h_clean, observed = res$observed, permutations = res$permutations)
 
-  # Create S4 object with raw results only
-  .create_result_object(result, coords, gene1, gene2, seed, call = match.call())
+  out <- .create_result_object(result, coords, gene1, gene2, seed, call = match.call())
+
+  if (!is.null(mom)) {
+    out@moment_var <- mom$var
+    out@moment_skewness <- mom$skewness
+    out@moment_excess_kurtosis <- mom$excess_kurtosis
+    out@leverage <- mom$leverage
+    out@moment_cov <- .permutation_covariance(mom)
+  }
+  methods::validObject(out)
+  out
 }
 
 

@@ -57,6 +57,22 @@ interval for the observed value, which is what the former name
 \item{\code{sup_statistic}}{Numeric scalar, whole-curve supremum statistic}
 
 \item{\code{sup_p_value}}{Numeric scalar, p-value for the whole curve}
+
+\item{\code{moment_var}}{Numeric vector, exact variance of the permutation null. Exact,
+not estimated: see \code{\link{multiScaleAC}}.}
+
+\item{\code{moment_skewness}}{Numeric vector, exact skewness of the permutation null}
+
+\item{\code{moment_excess_kurtosis}}{Numeric vector, exact excess kurtosis of the
+permutation null}
+
+\item{\code{leverage}}{Numeric vector, largest single cell's share of the null
+variance. Values near 1 mean one cell dominates and no continuous
+approximation to the null can be trusted at that bandwidth.}
+
+\item{\code{moment_cov}}{Matrix, exact cross-bandwidth covariance of the null}
+
+\item{\code{p_method}}{Character vector recording which method produced each p-value}
 }}
 
 \section{Uncomputed slots}{

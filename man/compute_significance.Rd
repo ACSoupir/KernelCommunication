@@ -6,6 +6,8 @@
 \usage{
 compute_significance(
   result,
+  method = c("permutation", "moment", "auto"),
+  moment_dist = c("gamma", "saddlepoint", "edgeworth", "normal"),
   alternative = c("greater", "less", "two.sided"),
   alpha = 0.05,
   envelope_level = 0.95,
@@ -16,6 +18,17 @@ compute_significance(
 }
 \arguments{
 \item{result}{Object of class \code{\linkS4class{kernelcomm_result}}}
+
+\item{method}{Character. \code{"permutation"}, \code{"moment"}, or
+\code{"auto"}.}
+
+\item{moment_dist}{Character, how moments become a tail probability.
+\code{"gamma"} (default) matches three moments with a shifted gamma and was
+the only method with no anti-conservative failures in calibration.
+\code{"saddlepoint"} is better founded and excellent under strong skew but
+measured worse on near-symmetric real data; treat it as experimental.
+\code{"edgeworth"} and \code{"normal"} are provided for comparison and are
+not recommended: both fail badly in the deep tail under skew.}
 
 \item{alternative}{Character. \code{"greater"} (default, the manuscript's
 one-tailed upper test), \code{"less"}, or \code{"two.sided"}.}
@@ -94,6 +107,22 @@ zeros, null skewness 2.4) a normal approximation returned an upper-tail
 probability 100 times too small at the 0.0001 level, which would manufacture
 false positives at exactly the threshold an FDR screen operates on. Use the
 permutation p-values, or the moment-based methods, which model the skewness.
+}
+
+\section{Permutation or moment based}{
+
+\code{method = "permutation"} (default) uses the permutation distribution.
+\code{"moment"} uses the exact analytical moments of the permutation null,
+which \code{\link{multiScaleAC}} computes for free, mapped to a tail
+probability by \code{moment_dist}. \code{"auto"} uses moments where the
+diagnostics say a continuous approximation is trustworthy and permutations
+elsewhere, recording the choice per bandwidth in \code{p_method}.
+
+The moments are exact. Mapping them to a tail probability is an approximation,
+and the default mapping was selected by measurement against 200,000
+permutations rather than by theory; see
+\code{inst/validation/calibrate_moments.R}. Permutations remain the default
+because they need no such approximation.
 }
 
 \examples{
