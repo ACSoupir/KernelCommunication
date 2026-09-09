@@ -38,3 +38,10 @@ docs/benchmark/benchmark_comparison.html
 
 ## generated validation output (regenerate from inst/validation/)
 inst/validation/output/
+
+## pkgdown output (destination is moved so it cannot overwrite docs/)
+pkgdown-site/
+
+## knitr scratch from running vignettes outside R CMD build
+vignettes/figure/
+vignettes/*.md

@@ -18,5 +18,7 @@
 ^benchmark_kernels\.R$
 ^final_benchmark\.R$
 ^_pkgdown\.yml$
+^pkgdown-site$
 ^.*\.pdf$
 ^inst/validation/output$
+^vignettes/figure$
