@@ -12,7 +12,8 @@ moran_kernel_pass(
   kernel = "gaussian",
   dist_method = "euclidean",
   drop_isolated = TRUE,
-  n_threads = 1L
+  n_threads = 1L,
+  rowsums_only = FALSE
 )
 }
 \arguments{
@@ -34,10 +35,14 @@ condition under which this reduces exactly to the reference implementation.}
 producing a non-finite value. The caller uses this to implement nan_policy.}
 
 \item{n_threads}{Requested OpenMP threads; ignored when built without OpenMP support.}
+
+\item{rowsums_only}{When TRUE, skip the second pass and return the full row sum matrix instead
+of \code{V}. Used by \code{qc_neighborhoods()}, which needs the neighbourhood sizes but not
+the lagged gene.}
 }
 \value{
-A list with \code{V} (n_h x N), \code{rowsum_mean}, \code{rowsum_min},
-  \code{n_isolated} and \code{h}.
+A list with \code{V} (n_h x N) or \code{rowsums} (n_h x N), plus
+  \code{rowsum_mean}, \code{rowsum_min}, \code{n_isolated} and \code{h}.
 }
 \description{
 Internal. Computes, for each bandwidth h, the row sums of the kernel weight matrix and the

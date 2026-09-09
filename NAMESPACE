@@ -44,6 +44,10 @@ importFrom(ggplot2,
 )
 importFrom(methods,
   new,
+  setClass,
+  setMethod,
+  setValidity,
+  show,
   slot,
   validObject
 )

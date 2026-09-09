@@ -111,7 +111,26 @@ plot.kernelcomm_result <- function(x, y, type = "observed", ...) {
 }
 
 
+#' Show Method for kernelcomm_result
+#'
+#' S4 dispatch for automatic printing. Without this, evaluating a result at the
+#' prompt falls through to the default S4 show method, which dumps every slot --
+#' including the full n_h x perms permutation matrix and the N x 2 coordinate
+#' matrix -- across the console. The S3 \code{print} method only fires on an
+#' explicit \code{print(x)} call, so it did not cover the common case.
+#'
+#' @param object kernelcomm_result object
+#' @return \code{object}, invisibly.
+#' @keywords internal
+setMethod("show", "kernelcomm_result", function(object) {
+  print.kernelcomm_result(object)
+  invisible(object)
+})
+
+
 #' Helper: NULL coalescing operator
+#'
+#' Defined for R < 4.4, where base R does not provide it.
 #'
 #' @noRd
 `%||%` <- function(x, y) {

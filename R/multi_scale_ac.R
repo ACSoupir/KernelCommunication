@@ -264,36 +264,19 @@ multiScaleAC <- function(coords,
                              eps, batch_size, seed,
                              kernel, distance, kernel_is_custom, distance_is_custom) {
 
-  # Validate coords
-  if (!is.matrix(coords) || ncol(coords) != 2) {
-    stop("coords must be a numeric matrix with 2 columns")
+  # Data checks are delegated to the exported reporter so there is exactly one implementation. This
+  # wrapper turns its report into errors and warnings. Previously the two were separate functions
+  # with different rules, and the exported one was never called by anything.
+  #
+  # Zero variance is an error there but only a degenerate case here: the reference implementation
+  # returns an all-zero curve rather than failing, and multiScaleAC() reproduces that under
+  # nan_policy, so it is downgraded to a warning issued later by .apply_nan_policy().
+  report <- validate_inputs(coords, gene1, gene2)
+  hard <- grep("zero variance", report$errors, value = TRUE, invert = TRUE)
+  if (length(hard) > 0) {
+    stop(paste0("invalid input:\n", paste0("  - ", hard, collapse = "\n")), call. = FALSE)
   }
-  if (!is.numeric(coords)) {
-    stop("coords must be numeric")
-  }
-  if (any(is.na(coords)) || any(is.infinite(coords))) {
-    stop("Coordinates contain missing or infinite values")
-  }
-
-  # Validate gene1 and gene2
-  if (!is.numeric(gene1) || !is.numeric(gene2)) {
-    stop("gene1 and gene2 must be numeric vectors")
-  }
-  if (any(is.na(gene1)) || any(is.infinite(gene1)) ||
-      any(is.na(gene2)) || any(is.infinite(gene2))) {
-    stop("Gene expression values contain missing or infinite values")
-  }
-
-  # Check lengths match
-  N <- nrow(coords)
-  if (length(gene1) != N || length(gene2) != N) {
-    stop("coords, gene1, and gene2 must have same number of observations")
-  }
-
-  # Check minimum N
-  if (N < 3) {
-    stop("At least 3 observations required")
-  }
+  for (w in report$warnings) warning(w, call. = FALSE)
 
   # Validate h. NA and Inf are rejected here rather than in .sanitize_h(), where `if (NA > 0)`
   # raised an uninformative error about a missing value.

@@ -25,8 +25,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // moran_kernel_pass
-Rcpp::List moran_kernel_pass(const Eigen::Map<Eigen::MatrixXd> coords, const Eigen::Map<Eigen::VectorXd> gene1, const Eigen::Map<Eigen::VectorXd> h_vec, double eps, std::string kernel, std::string dist_method, bool drop_isolated, int n_threads);
-RcppExport SEXP _multiScaleAC_moran_kernel_pass(SEXP coordsSEXP, SEXP gene1SEXP, SEXP h_vecSEXP, SEXP epsSEXP, SEXP kernelSEXP, SEXP dist_methodSEXP, SEXP drop_isolatedSEXP, SEXP n_threadsSEXP) {
+Rcpp::List moran_kernel_pass(const Eigen::Map<Eigen::MatrixXd> coords, const Eigen::Map<Eigen::VectorXd> gene1, const Eigen::Map<Eigen::VectorXd> h_vec, double eps, std::string kernel, std::string dist_method, bool drop_isolated, int n_threads, bool rowsums_only);
+RcppExport SEXP _multiScaleAC_moran_kernel_pass(SEXP coordsSEXP, SEXP gene1SEXP, SEXP h_vecSEXP, SEXP epsSEXP, SEXP kernelSEXP, SEXP dist_methodSEXP, SEXP drop_isolatedSEXP, SEXP n_threadsSEXP, SEXP rowsums_onlySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -38,7 +38,21 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::string >::type dist_method(dist_methodSEXP);
     Rcpp::traits::input_parameter< bool >::type drop_isolated(drop_isolatedSEXP);
     Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(moran_kernel_pass(coords, gene1, h_vec, eps, kernel, dist_method, drop_isolated, n_threads));
+    Rcpp::traits::input_parameter< bool >::type rowsums_only(rowsums_onlySEXP);
+    rcpp_result_gen = Rcpp::wrap(moran_kernel_pass(coords, gene1, h_vec, eps, kernel, dist_method, drop_isolated, n_threads, rowsums_only));
+    return rcpp_result_gen;
+END_RCPP
+}
+// nn_distance
+Eigen::VectorXd nn_distance(const Eigen::Map<Eigen::MatrixXd> coords, std::string dist_method, int n_threads);
+RcppExport SEXP _multiScaleAC_nn_distance(SEXP coordsSEXP, SEXP dist_methodSEXP, SEXP n_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::Map<Eigen::MatrixXd> >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type dist_method(dist_methodSEXP);
+    Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(nn_distance(coords, dist_method, n_threads));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -67,7 +81,8 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_multiScaleAC_gaussian_kernel_weights", (DL_FUNC) &_multiScaleAC_gaussian_kernel_weights, 3},
-    {"_multiScaleAC_moran_kernel_pass", (DL_FUNC) &_multiScaleAC_moran_kernel_pass, 8},
+    {"_multiScaleAC_moran_kernel_pass", (DL_FUNC) &_multiScaleAC_moran_kernel_pass, 9},
+    {"_multiScaleAC_nn_distance", (DL_FUNC) &_multiScaleAC_nn_distance, 3},
     {"_multiScaleAC_moran_max_threads", (DL_FUNC) &_multiScaleAC_moran_max_threads, 0},
     {"_multiScaleAC_sparse_dense_mult", (DL_FUNC) &_multiScaleAC_sparse_dense_mult, 2},
     {NULL, NULL, 0}

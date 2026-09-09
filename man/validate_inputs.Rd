@@ -7,7 +7,7 @@
 validate_inputs(coords, gene1, gene2)
 }
 \arguments{
-\item{coords}{Coordinates matrix}
+\item{coords}{Coordinates matrix (N x 2)}
 
 \item{gene1}{Gene 1 expression vector}
 
@@ -15,21 +15,31 @@ validate_inputs(coords, gene1, gene2)
 }
 \value{
 List with components:
-  \item{errors}{Character vector of critical errors}
-  \item{warnings}{Character vector of warnings}
-  \item{valid}{Logical. TRUE if no errors}
+  \item{errors}{Character vector of problems that prevent computation}
+  \item{warnings}{Character vector of things worth knowing about}
+  \item{valid}{Logical. TRUE if there are no errors}
 }
 \description{
-Checks for common issues before computation.
+Checks for common problems before computation and returns a report, rather
+than raising an error. Use this to inspect data interactively;
+\code{\link{multiScaleAC}} runs the same checks itself and stops on errors.
+}
+\details{
+Previously this function was exported and documented but never called by
+anything, while \code{multiScaleAC()} used a separate internal validator with
+different rules. There is now one implementation with two surfaces: this one
+reports, and the internal wrapper enforces.
 }
 \examples{
-\dontrun{
-validation <- validate_inputs(coords, gene1, gene2)
-if (!validation$valid) {
-  stop("Validation failed: ", paste(validation$errors, collapse = ", "))
+set.seed(1)
+coords <- matrix(runif(200), ncol = 2)
+report <- validate_inputs(coords, rnorm(100), rnorm(100))
+report$valid
+
+# A constant gene is reported rather than silently producing zeros
+validate_inputs(coords, rep(1, 100), rnorm(100))$errors
 }
-if (length(validation$warnings) > 0) {
-  warning(paste(validation$warnings, collapse = ", "))
-}
-}
+\seealso{
+\code{\link{qc_neighborhoods}} to check whether a bandwidth is
+  sensible, and \code{\link{suggest_bandwidths}} to choose one.
 }

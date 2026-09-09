@@ -21,12 +21,31 @@ gaussian_kernel_weights <- function(coords, h, eps = 1e-15) {
 #' @param drop_isolated When TRUE, cells with a zero row sum contribute nothing rather than
 #'   producing a non-finite value. The caller uses this to implement nan_policy.
 #' @param n_threads Requested OpenMP threads; ignored when built without OpenMP support.
+#' @param rowsums_only When TRUE, skip the second pass and return the full row sum matrix instead
+#'   of \code{V}. Used by \code{qc_neighborhoods()}, which needs the neighbourhood sizes but not
+#'   the lagged gene.
 #'
-#' @return A list with \code{V} (n_h x N), \code{rowsum_mean}, \code{rowsum_min},
-#'   \code{n_isolated} and \code{h}.
+#' @return A list with \code{V} (n_h x N) or \code{rowsums} (n_h x N), plus
+#'   \code{rowsum_mean}, \code{rowsum_min}, \code{n_isolated} and \code{h}.
 #' @keywords internal
-moran_kernel_pass <- function(coords, gene1, h_vec, eps = 0.0, kernel = "gaussian", dist_method = "euclidean", drop_isolated = TRUE, n_threads = 1L) {
-    .Call(`_multiScaleAC_moran_kernel_pass`, coords, gene1, h_vec, eps, kernel, dist_method, drop_isolated, n_threads)
+moran_kernel_pass <- function(coords, gene1, h_vec, eps = 0.0, kernel = "gaussian", dist_method = "euclidean", drop_isolated = TRUE, n_threads = 1L, rowsums_only = FALSE) {
+    .Call(`_multiScaleAC_moran_kernel_pass`, coords, gene1, h_vec, eps, kernel, dist_method, drop_isolated, n_threads, rowsums_only)
+}
+
+#' Nearest-neighbour distance for every point
+#'
+#' Internal. One pass per point, so O(N) memory rather than the O(N^2) a full
+#' \code{as.matrix(dist(coords))} would need. \code{suggest_bandwidths()} previously built that
+#' full matrix, which made it unusable at the sample sizes this package targets: about 400 MB for
+#' the 7122-cell bundled example and 80 GB at N = 100000.
+#'
+#' @param coords N x 2 numeric matrix.
+#' @param dist_method "euclidean" or "manhattan".
+#' @param n_threads Requested OpenMP threads; ignored without OpenMP.
+#' @return Length-N numeric vector of distances to the closest other point.
+#' @keywords internal
+nn_distance <- function(coords, dist_method = "euclidean", n_threads = 1L) {
+    .Call(`_multiScaleAC_nn_distance`, coords, dist_method, n_threads)
 }
 
 #' Report whether the package was compiled with OpenMP support

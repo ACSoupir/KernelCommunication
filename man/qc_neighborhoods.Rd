@@ -4,30 +4,63 @@
 \alias{qc_neighborhoods}
 \title{Compute Neighborhood Quality Metrics}
 \usage{
-qc_neighborhoods(coords, h)
+qc_neighborhoods(
+  coords,
+  h,
+  kernel = c("gaussian", "uniform"),
+  distance = c("euclidean", "manhattan"),
+  eps = 0
+)
 }
 \arguments{
-\item{coords}{Coordinates matrix}
+\item{coords}{Coordinates matrix (N x 2)}
 
-\item{h}{Bandwidth value}
+\item{h}{Bandwidth, or a vector of bandwidths. A vector previously recycled
+silently against the distance matrix and returned meaningless numbers.}
+
+\item{kernel}{Character. "gaussian" or "uniform", matching what you will pass
+to \code{\link{multiScaleAC}}.}
+
+\item{distance}{Character. "euclidean" or "manhattan".}
+
+\item{eps}{Weight threshold, matching \code{\link{multiScaleAC}}.}
 }
 \value{
-List with neighborhood statistics:
-  \item{mean_neighbors}{Average number of neighbors per cell}
-  \item{sd_neighbors}{Standard deviation of neighbors}
-  \item{min_neighbors}{Minimum neighbors}
-  \item{max_neighbors}{Maximum neighbors}
-  \item{isolated_cells}{Number of cells with no neighbors}
-  \item{percent_isolated}{Percentage of isolated cells}
+A data frame with one row per bandwidth:
+  \item{h}{The bandwidth}
+  \item{mean_neighbors}{Mean kernel row sum, the effective neighbourhood size}
+  \item{sd_neighbors}{Standard deviation of the row sums}
+  \item{min_neighbors}{Smallest row sum}
+  \item{max_neighbors}{Largest row sum}
+  \item{isolated_cells}{Cells whose row sum is exactly zero}
+  \item{percent_isolated}{The same as a percentage}
+  \item{saturation}{Mean row sum divided by N. Values near 1 mean the kernel
+    is effectively constant and the bandwidth is too large to be informative.}
 }
 \description{
-Reports statistics about neighborhood structure at a given bandwidth.
+Reports the effective neighbourhood size at one or more bandwidths, so you can
+tell whether a bandwidth is usable before interpreting a curve computed with
+it.
+}
+\details{
+\strong{What "effective" means.} For the Gaussian kernel every pair has a
+non-zero weight, so counting neighbours within a hard radius describes a
+different model from the one being fitted. This function reports the kernel row
+sum, which is the weight actually carried, and equals a plain neighbour count
+only for the uniform kernel. The previous version applied a hard
+\code{distance <= h} cutoff regardless of kernel, so under the default
+Gaussian setting it could never report an isolated cell.
+
+Interpretation: a mean row sum close to \code{N} means the kernel is saturated,
+every cell is effectively everyone's neighbour, and Moran's I will collapse
+toward zero whatever the biology. A mean near zero means almost no cell has a
+neighbour carrying weight and the statistic is unstable or undefined.
 }
 \examples{
-\dontrun{
 data(ccRCCExample)
-coords <- as.matrix(ccRCCExample[, c("x", "y")])
-stats <- qc_neighborhoods(coords, h = 20)
-print(stats)
-}
+coords <- as.matrix(ccRCCExample[1:1500, c("x", "y")])
+
+# Coordinates are in millimetres. Sensible bandwidths, and one far too large:
+qc_neighborhoods(coords, h = c(0.01, 0.05, 0.25, 25))
+# The last row has saturation near 1 -- that bandwidth cannot detect anything.
 }

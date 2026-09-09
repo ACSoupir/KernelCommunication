@@ -82,9 +82,12 @@ inline double kernel_weight(double dsq, bool gaussian, double inv_two_h_sq, doub
 //' @param drop_isolated When TRUE, cells with a zero row sum contribute nothing rather than
 //'   producing a non-finite value. The caller uses this to implement nan_policy.
 //' @param n_threads Requested OpenMP threads; ignored when built without OpenMP support.
+//' @param rowsums_only When TRUE, skip the second pass and return the full row sum matrix instead
+//'   of \code{V}. Used by \code{qc_neighborhoods()}, which needs the neighbourhood sizes but not
+//'   the lagged gene.
 //'
-//' @return A list with \code{V} (n_h x N), \code{rowsum_mean}, \code{rowsum_min},
-//'   \code{n_isolated} and \code{h}.
+//' @return A list with \code{V} (n_h x N) or \code{rowsums} (n_h x N), plus
+//'   \code{rowsum_mean}, \code{rowsum_min}, \code{n_isolated} and \code{h}.
 //' @keywords internal
 // [[Rcpp::export]]
 Rcpp::List moran_kernel_pass(const Eigen::Map<Eigen::MatrixXd> coords,
@@ -94,7 +97,8 @@ Rcpp::List moran_kernel_pass(const Eigen::Map<Eigen::MatrixXd> coords,
                              std::string kernel = "gaussian",
                              std::string dist_method = "euclidean",
                              bool drop_isolated = true,
-                             int n_threads = 1) {
+                             int n_threads = 1,
+                             bool rowsums_only = false) {
 
   const int N   = static_cast<int>(coords.rows());
   const int n_h = static_cast<int>(h_vec.size());
@@ -177,6 +181,16 @@ Rcpp::List moran_kernel_pass(const Eigen::Map<Eigen::MatrixXd> coords,
     n_isolated(k)  = iso;
   }
 
+  if (rowsums_only) {
+    return Rcpp::List::create(
+      Rcpp::Named("rowsums")     = rowsums,
+      Rcpp::Named("rowsum_mean") = rowsum_mean,
+      Rcpp::Named("rowsum_min")  = rowsum_min,
+      Rcpp::Named("n_isolated")  = n_isolated,
+      Rcpp::Named("h")           = h_vec
+    );
+  }
+
   // ---------------------------------------------------------------------
   // gene1 divided by its row sum, per bandwidth.
   //
@@ -233,6 +247,59 @@ Rcpp::List moran_kernel_pass(const Eigen::Map<Eigen::MatrixXd> coords,
     Rcpp::Named("n_isolated")  = n_isolated,
     Rcpp::Named("h")           = h_vec
   );
+}
+
+//' Nearest-neighbour distance for every point
+//'
+//' Internal. One pass per point, so O(N) memory rather than the O(N^2) a full
+//' \code{as.matrix(dist(coords))} would need. \code{suggest_bandwidths()} previously built that
+//' full matrix, which made it unusable at the sample sizes this package targets: about 400 MB for
+//' the 7122-cell bundled example and 80 GB at N = 100000.
+//'
+//' @param coords N x 2 numeric matrix.
+//' @param dist_method "euclidean" or "manhattan".
+//' @param n_threads Requested OpenMP threads; ignored without OpenMP.
+//' @return Length-N numeric vector of distances to the closest other point.
+//' @keywords internal
+// [[Rcpp::export]]
+Eigen::VectorXd nn_distance(const Eigen::Map<Eigen::MatrixXd> coords,
+                            std::string dist_method = "euclidean",
+                            int n_threads = 1) {
+  const int N = static_cast<int>(coords.rows());
+  if (coords.cols() < 2) Rcpp::stop("`coords` must have at least two columns.");
+  if (N < 2) Rcpp::stop("at least two points are needed for a nearest-neighbour distance.");
+
+  const bool euclidean = (dist_method == "euclidean");
+  if (!euclidean && dist_method != "manhattan") {
+    Rcpp::stop("`dist_method` must be \"euclidean\" or \"manhattan\".");
+  }
+
+#ifdef _OPENMP
+  if (n_threads > 1) omp_set_num_threads(n_threads);
+#endif
+
+  const double* cx = coords.data();
+  const double* cy = coords.data() + N;
+
+  Eigen::VectorXd out(N);
+
+#ifdef _OPENMP
+  #pragma omp parallel for schedule(static)
+#endif
+  for (int i = 0; i < N; ++i) {
+    const double xi = cx[i], yi = cy[i];
+    double best = R_PosInf;
+    for (int j = 0; j < N; ++j) {
+      if (j == i) continue;
+      const double dsq = squared_distance(xi - cx[j], yi - cy[j], euclidean);
+      if (dsq < best) best = dsq;
+    }
+    // squared_distance returns the square of the metric distance under both metrics, so one sqrt
+    // recovers the distance itself.
+    out(i) = std::sqrt(best);
+  }
+
+  return out;
 }
 
 //' Report whether the package was compiled with OpenMP support

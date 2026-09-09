@@ -46,7 +46,7 @@
 
 #' @useDynLib multiScaleAC, .registration = TRUE
 #' @importFrom Rcpp evalCpp
-#' @importFrom methods new slot validObject
+#' @importFrom methods new slot validObject setClass setValidity setMethod show
 #' @importFrom stats dist sd quantile p.adjust
 #' @importFrom utils modifyList
 NULL

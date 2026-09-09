@@ -4,31 +4,56 @@
 \alias{suggest_bandwidths}
 \title{Suggest Bandwidth Values}
 \usage{
-suggest_bandwidths(coords, n_bandwidths = 5, range = "medium")
+suggest_bandwidths(
+  coords,
+  n_bandwidths = 5,
+  range = c("medium", "local", "global"),
+  distance = c("euclidean", "manhattan")
+)
 }
 \arguments{
 \item{coords}{Coordinate matrix (N x 2)}
 
-\item{n_bandwidths}{Number of bandwidth values to suggest}
+\item{n_bandwidths}{Number of bandwidths to return}
 
-\item{range}{Character. One of "local", "medium", "global"
-\itemize{
-  \item "local": 10th-50th percentile of NN distances (fine-scale)
-  \item "medium": 25th-75th percentile (intermediate scale)
-  \item "global": 50th-90th percentile (broad-scale)
-}}
+\item{range}{Character. One of "local", "medium", "global".}
+
+\item{distance}{Character. "euclidean" or "manhattan", matching what you will
+pass to \code{\link{multiScaleAC}}.}
 }
 \value{
-Numeric vector of suggested h values
+Numeric vector of suggested bandwidths, in coordinate units,
+  increasing. Carries a \code{"scale_reference"} attribute recording the
+  median nearest-neighbour distance and the extent used to derive them.
 }
 \description{
-Recommends bandwidth values based on nearest neighbor distances.
+Proposes bandwidths spanning a range of spatial scales, in the units of
+\code{coords}.
+}
+\details{
+\code{"local"} bandwidths are derived from nearest-neighbour distances, so
+each cell sees a handful of neighbours. \code{"global"} bandwidths are derived
+from the spatial extent of the sample, so each cell sees a substantial
+fraction of it. \code{"medium"} spans between the two, which is usually what
+you want for a functional curve.
+
+The previous version returned quantiles of the \emph{same} nearest-neighbour
+distribution for all three settings, so \code{"global"} was not global: every
+option produced near-nearest-neighbour bandwidths. It also built a full
+N x N distance matrix, which is about 400 MB for the bundled 7122-cell example
+and 80 GB at N = 100000. Nearest-neighbour distances are now computed in one
+pass with O(N) memory.
 }
 \examples{
-\dontrun{
 data(ccRCCExample)
 coords <- as.matrix(ccRCCExample[, c("x", "y")])
-h_suggested <- suggest_bandwidths(coords, n_bandwidths = 5, range = "medium")
-print(h_suggested)
+
+# Coordinates are in millimetres, so these come back in millimetres.
+h <- suggest_bandwidths(coords, n_bandwidths = 6)
+round(h, 4)
+attr(h, "scale_reference")
 }
+\seealso{
+\code{\link{qc_neighborhoods}} to confirm the resulting
+  neighbourhood sizes.
 }
