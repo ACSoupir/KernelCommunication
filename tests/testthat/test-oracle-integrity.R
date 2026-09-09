@@ -10,7 +10,7 @@
 # the reference, which also requires regenerating every fixture.
 
 test_that("the reference implementation is unmodified", {
-  fn <- KernelCommunication::soupir_moran_multi
+  fn <- multiScaleAC::soupir_moran_multi
 
   # Hash the deparsed function rather than the file, so comments and roxygen edits are permitted
   # while any change to the code itself is caught.
@@ -30,15 +30,15 @@ test_that("the reference implementation keeps its signature", {
   # Argument order matters: coords comes first, unlike soupir_moran_bv(). Callers and fixtures
   # depend on this, and an earlier version of the documented example had the order wrong.
   expect_identical(
-    names(formals(KernelCommunication::soupir_moran_multi)),
+    names(formals(multiScaleAC::soupir_moran_multi)),
     c("coords", "gene1", "gene2", "h_vec", "perms", "seed")
   )
-  expect_identical(formals(KernelCommunication::soupir_moran_multi)$seed, 333)
+  expect_identical(formals(multiScaleAC::soupir_moran_multi)$seed, 333)
 })
 
 test_that("the reference implementation stays exported for backwards compatibility", {
   # soupir_moran_multi() is a permanent part of the public API. It is not deprecated.
-  exports <- getNamespaceExports("KernelCommunication")
+  exports <- getNamespaceExports("multiScaleAC")
   expect_true("soupir_moran_multi" %in% exports)
   expect_true("soupir_moran_bv" %in% exports)
 })
@@ -48,7 +48,7 @@ test_that("the reference implementation still reproduces its own fixtures", {
   # what the oracle produces. If this fails, the fixtures are stale relative to this machine, not
   # necessarily wrong.
   for (cs in golden_cases()) {
-    res <- KernelCommunication::soupir_moran_multi(
+    res <- multiScaleAC::soupir_moran_multi(
       cs$coords, cs$gene1, cs$gene2,
       h_vec = cs$h, perms = cs$perms, seed = cs$seed
     )

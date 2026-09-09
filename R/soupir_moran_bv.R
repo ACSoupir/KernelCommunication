@@ -27,8 +27,6 @@
 #' hist(result$permutations)
 #' }
 #'
-#' @useDynLib KernelCommunication, .registration = TRUE
-#' @importFrom Rcpp evalCpp
 #' @export
 soupir_moran_bv <- function(h, coords, gene1, gene2, perms, eps = 0) {
   if(length(h) != 1) stop("`h` must be single value")

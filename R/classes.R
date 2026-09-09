@@ -1,4 +1,4 @@
-#' KernelCommunication Result Object
+#' multiScaleAC Result Object
 #'
 #' S4 class for storing multi-scale Moran's I computation results.
 #'

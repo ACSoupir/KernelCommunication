@@ -28,6 +28,15 @@ lag_sparse = function(W_sparse, scaled_gene2){
   as.matrix(W_sparse %*% scaled_gene2)
 }
 
+# No `lag.sparse` compatibility shim is provided, deliberately.
+#
+# This function was originally named `lag.sparse`, and the pre-refactor NAMESPACE contained only
+# `S3method(lag, sparse)` with no corresponding `export()`. It was therefore never callable as
+# `lag.sparse(...)`, and the S3 route could not dispatch either: Matrix sparse matrices are S4
+# objects of class "dgCMatrix", not "sparse". The function was unreachable, so renaming it to
+# `lag_sparse` broke no caller and a deprecation shim would only reintroduce the misleading
+# registration that the rename removed.
+
 # Global variables for ggplot2 and R CMD check
 utils::globalVariables(c(
   "ci_lower", "ci_upper", "h", "n_significant", "null", "perm", 

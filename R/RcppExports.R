@@ -2,14 +2,14 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 gaussian_kernel_weights <- function(coords, h, eps = 1e-15) {
-    .Call(`_KernelCommunication_gaussian_kernel_weights`, coords, h, eps)
+    .Call(`_multiScaleAC_gaussian_kernel_weights`, coords, h, eps)
 }
 
 moran_multi_cpp <- function(coords, gene1, gene2, h_vec, Y_perm, perms, seed, eps, batch_size, verbose, large_mode_n, kernel, dist_method) {
-    .Call(`_KernelCommunication_moran_multi_cpp`, coords, gene1, gene2, h_vec, Y_perm, perms, seed, eps, batch_size, verbose, large_mode_n, kernel, dist_method)
+    .Call(`_multiScaleAC_moran_multi_cpp`, coords, gene1, gene2, h_vec, Y_perm, perms, seed, eps, batch_size, verbose, large_mode_n, kernel, dist_method)
 }
 
 sparse_dense_mult <- function(Ws, P) {
-    .Call(`_KernelCommunication_sparse_dense_mult`, Ws, P)
+    .Call(`_multiScaleAC_sparse_dense_mult`, Ws, P)
 }
 

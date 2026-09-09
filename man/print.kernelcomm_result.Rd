@@ -11,12 +11,15 @@
 
 \item{...}{Additional arguments (unused)}
 }
+\value{
+\code{x}, invisibly.
+}
 \description{
 Print Method for kernelcomm_result
 }
 \examples{
 \dontrun{
-result <- multiScaleAC(coords, gene1, gene2, h = c(10, 20, 40))
+result <- multiScaleAC(coords, gene1, gene2, h = c(0.02, 0.05, 0.1))
 print(result)
 }
 }

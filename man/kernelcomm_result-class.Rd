@@ -3,7 +3,7 @@
 \docType{class}
 \name{kernelcomm_result-class}
 \alias{kernelcomm_result-class}
-\title{KernelCommunication Result Object}
+\title{multiScaleAC Result Object}
 \description{
 S4 class for storing multi-scale Moran's I computation results.
 }

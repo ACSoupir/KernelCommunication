@@ -23,26 +23,35 @@ export(suggest_bandwidths)
 export(validate_inputs)
 exportClasses(kernelcomm_result)
 importFrom(Rcpp,evalCpp)
-importFrom(ggplot2,aes)
-importFrom(ggplot2,element_blank)
-importFrom(ggplot2,element_text)
-importFrom(ggplot2,geom_bar)
-importFrom(ggplot2,geom_histogram)
-importFrom(ggplot2,geom_hline)
-importFrom(ggplot2,geom_line)
-importFrom(ggplot2,geom_point)
-importFrom(ggplot2,geom_ribbon)
-importFrom(ggplot2,geom_text)
-importFrom(ggplot2,geom_tile)
-importFrom(ggplot2,geom_vline)
-importFrom(ggplot2,ggplot)
-importFrom(ggplot2,labs)
-importFrom(ggplot2,scale_fill_gradient2)
-importFrom(ggplot2,theme)
-importFrom(ggplot2,theme_minimal)
-importFrom(methods,new)
-importFrom(stats,dist)
-importFrom(stats,quantile)
-importFrom(stats,sd)
+importFrom(ggplot2,
+  aes,
+  element_blank,
+  element_text,
+  geom_bar,
+  geom_histogram,
+  geom_hline,
+  geom_line,
+  geom_point,
+  geom_ribbon,
+  geom_text,
+  geom_tile,
+  geom_vline,
+  ggplot,
+  labs,
+  scale_fill_gradient2,
+  theme,
+  theme_minimal
+)
+importFrom(methods,
+  new,
+  slot,
+  validObject
+)
+importFrom(stats,
+  dist,
+  p.adjust,
+  quantile,
+  sd
+)
 importFrom(utils,modifyList)
-useDynLib(KernelCommunication, .registration = TRUE)
+useDynLib(multiScaleAC, .registration = TRUE)

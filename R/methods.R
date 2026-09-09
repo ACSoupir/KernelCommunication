@@ -3,16 +3,18 @@
 #' @param x kernelcomm_result object
 #' @param ... Additional arguments (unused)
 #'
+#' @return \code{x}, invisibly.
+#' @method print kernelcomm_result
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' result <- multiScaleAC(coords, gene1, gene2, h = c(10, 20, 40))
+#' result <- multiScaleAC(coords, gene1, gene2, h = c(0.02, 0.05, 0.1))
 #' print(result)
 #' }
 print.kernelcomm_result <- function(x, ...) {
-  cat("KernelCommunication Result\n")
-  cat("==========================\n")
+  cat("multiScaleAC result\n")
+  cat("===================\n")
   cat("Sample:", x@sample_id, "\n")
   cat("Gene pair:", x@gene1_name, "x", x@gene2_name, "\n")
   cat("Bandwidths:", length(x@h), "values from", 
@@ -32,6 +34,7 @@ print.kernelcomm_result <- function(x, ...) {
   } else {
     cat("Significance: Not computed (use compute_significance())\n")
   }
+  invisible(x)
 }
 
 
@@ -42,11 +45,12 @@ print.kernelcomm_result <- function(x, ...) {
 #' @param ... Additional arguments (unused)
 #'
 #' @return data.frame with detailed statistics
+#' @method summary kernelcomm_result
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' result <- multiScaleAC(coords, gene1, gene2, h = c(10, 20, 40))
+#' result <- multiScaleAC(coords, gene1, gene2, h = c(0.02, 0.05, 0.1))
 #' result <- compute_significance(result)
 #' summary(result)
 #' }
@@ -86,14 +90,15 @@ summary.kernelcomm_result <- function(object, alpha = 0.05, ...) {
 #' @param ... Additional arguments passed to plot_scale_curve
 #'
 #' @return ggplot object
+#' @method plot kernelcomm_result
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' result <- multiScaleAC(coords, gene1, gene2, h = c(10, 20, 40))
+#' result <- multiScaleAC(coords, gene1, gene2, h = c(0.02, 0.05, 0.1))
 #' result <- compute_significance(result)
-#' plot(result)  # Default: observed with CI
-#' plot(result, type = "difference")  # Deviation from null
+#' plot(result)                        # observed curve with the null envelope
+#' plot(result, type = "difference")   # deviation from the permutation mean
 #' }
 plot.kernelcomm_result <- function(x, y, type = "observed", ...) {
   # Check if significance is computed

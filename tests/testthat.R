@@ -1,4 +1,4 @@
 library(testthat)
-library(KernelCommunication)
+library(multiScaleAC)
 
-test_check("KernelCommunication")
+test_check("multiScaleAC")

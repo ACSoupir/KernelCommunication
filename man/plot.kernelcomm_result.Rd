@@ -23,9 +23,9 @@ Dispatches to appropriate plot function based on type.
 }
 \examples{
 \dontrun{
-result <- multiScaleAC(coords, gene1, gene2, h = c(10, 20, 40))
+result <- multiScaleAC(coords, gene1, gene2, h = c(0.02, 0.05, 0.1))
 result <- compute_significance(result)
-plot(result)  # Default: observed with CI
-plot(result, type = "difference")  # Deviation from null
+plot(result)                        # observed curve with the null envelope
+plot(result, type = "difference")   # deviation from the permutation mean
 }
 }
