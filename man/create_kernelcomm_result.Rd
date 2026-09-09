@@ -44,3 +44,15 @@ kernelcomm_result object
 \description{
 Helper function to create a valid kernelcomm_result object.
 }
+\examples{
+res <- create_kernelcomm_result(
+  h = c(0.05, 0.1),
+  observed = c(0.02, 0.01),
+  permutations = matrix(rnorm(20), nrow = 2),
+  coords = matrix(runif(20), ncol = 2),
+  gene1_name = "CD274", gene2_name = "PDCD1",
+  sample_id = "example", seed = 1, n_cells = 10,
+  call = quote(create_kernelcomm_result())
+)
+res
+}

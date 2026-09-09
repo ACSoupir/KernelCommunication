@@ -8,7 +8,7 @@
 #' @param interaction_name Character. Gene pair name (e.g., "CD274_PDCD1")
 #'
 #' @return data.frame with columns: sample_id, interaction_name, r, sumfun, csr, fundiff,
-#'         p_value, z_score, ci_lower, ci_upper
+#'         p_value, z_score, null_lower, null_upper
 #' @export
 #'
 #' @examples
@@ -50,8 +50,8 @@ export_mxfda <- function(result,
     fundiff = result@observed - result@perm_mean,
     p_value = result@p_values,
     z_score = result@z_scores,
-    ci_lower = result@ci_lower,
-    ci_upper = result@ci_upper,
+    null_lower = result@null_lower,
+    null_upper = result@null_upper,
     stringsAsFactors = FALSE
   )
   
@@ -74,7 +74,7 @@ export_mxfda <- function(result,
 #' @param interaction_names Character vector of interaction names (optional, auto-generated if NULL)
 #'
 #' @return data.frame with columns: sample_id, interaction_name, r, sumfun, csr, fundiff,
-#'         p_value, z_score, ci_lower, ci_upper
+#'         p_value, z_score, null_lower, null_upper
 #' @export
 #'
 #' @examples

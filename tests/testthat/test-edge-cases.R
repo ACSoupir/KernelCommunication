@@ -104,7 +104,7 @@ test_that("the result object satisfies its own validity rules", {
   expect_identical(nrow(res@permutations), length(res@h))
   # Significance slots must all still be empty on a fresh result.
   for (s in c("p_values", "z_scores", "perm_mean", "perm_sd",
-              "ci_lower", "ci_upper", "significant", "p_adjusted")) {
+              "null_lower", "null_upper", "significant", "p_adjusted")) {
     expect_length(methods::slot(res, s), 0L)
   }
 })

@@ -70,23 +70,31 @@ plot_scale_curve <- function(result,
   if (type == "observed") {
     y_values <- result@observed
     y_label <- "Moran's I"
-    ribbon_min <- result@ci_lower
-    ribbon_max <- result@ci_upper
+    ribbon_min <- result@null_lower
+    ribbon_max <- result@null_upper
     null_line <- result@perm_mean
     
   } else if (type == "difference") {
     y_values <- result@observed - result@perm_mean
     y_label <- "Observed - Mean(Permuted)"
-    ribbon_min <- result@ci_lower - result@perm_mean
-    ribbon_max <- result@ci_upper - result@perm_mean
+    ribbon_min <- result@null_lower - result@perm_mean
+    ribbon_max <- result@null_upper - result@perm_mean
     null_line <- rep(0, length(h))
     
   } else if (type == "zscore") {
     y_values <- result@z_scores
-    y_label <- "Z-score"
-    # For z-scores, show +-1.96 thresholds
-    ribbon_min <- rep(-1.96, length(h))
-    ribbon_max <- rep(1.96, length(h))
+    y_label <- "Standardised deviation from the permutation mean"
+    # The envelope comes from the permutation distribution itself, standardised the same way as the
+    # observed value -- not from +-1.96, which is what this drew before.
+    #
+    # A normal band is wrong here. The permutation null of this statistic is skewed whenever the
+    # expression data is skewed, which for zero-inflated single-cell data is the usual case, so a
+    # symmetric +-1.96 band misstates both tails and would disagree with the p-values shown
+    # elsewhere in the same object. See compute_significance() for the measured size of that error.
+    sd_safe <- ifelse(is.finite(result@perm_sd) & result@perm_sd > 0, result@perm_sd, NA_real_)
+    zperm <- sweep(sweep(result@permutations, 1, result@perm_mean, "-"), 1, sd_safe, "/")
+    ribbon_min <- apply(zperm, 1, stats::quantile, probs = 0.025, names = FALSE, na.rm = TRUE)
+    ribbon_max <- apply(zperm, 1, stats::quantile, probs = 0.975, names = FALSE, na.rm = TRUE)
     null_line <- rep(0, length(h))
   }
   
@@ -94,8 +102,8 @@ plot_scale_curve <- function(result,
   df <- data.frame(
     h = h,
     y = y_values,
-    ci_lower = ribbon_min,
-    ci_upper = ribbon_max,
+    null_lower = ribbon_min,
+    null_upper = ribbon_max,
     null = null_line
   )
   
@@ -106,7 +114,7 @@ plot_scale_curve <- function(result,
   
   # Build plot
   p <- ggplot2::ggplot(df, ggplot2::aes(x = h)) +
-    ggplot2::geom_ribbon(ggplot2::aes(ymin = ci_lower, ymax = ci_upper),
+    ggplot2::geom_ribbon(ggplot2::aes(ymin = null_lower, ymax = null_upper),
                 fill = colors$ribbon, alpha = alpha) +
     ggplot2::geom_line(ggplot2::aes(y = y), color = colors$line, linewidth = line_width) +
     ggplot2::geom_point(ggplot2::aes(y = y), color = colors$point, size = point_size) +

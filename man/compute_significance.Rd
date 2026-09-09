@@ -2,35 +2,116 @@
 % Please edit documentation in R/significance.R
 \name{compute_significance}
 \alias{compute_significance}
-\title{Compute Significance Statistics from Permutation Results}
+\title{Compute Significance from Permutation Results}
 \usage{
-compute_significance(result, alternative = "two.sided", alpha = 0.05)
+compute_significance(
+  result,
+  alternative = c("greater", "less", "two.sided"),
+  alpha = 0.05,
+  envelope_level = 0.95,
+  estimator = c("add_one", "paper"),
+  supremum = TRUE,
+  sup_standardize = TRUE
+)
 }
 \arguments{
-\item{result}{Object of class \code{kernelcomm_result}}
+\item{result}{Object of class \code{\linkS4class{kernelcomm_result}}}
 
-\item{alternative}{Character. One of "two.sided", "greater", "less"}
+\item{alternative}{Character. \code{"greater"} (default, the manuscript's
+one-tailed upper test), \code{"less"}, or \code{"two.sided"}.}
 
-\item{alpha}{Significance level for CI (default: 0.05)}
+\item{alpha}{Significance threshold for the \code{significant} slot.}
+
+\item{envelope_level}{Coverage of the null envelope, e.g. 0.95 for the 2.5th
+to 97.5th percentiles of the permutation distribution. Independent of
+\code{alpha}.}
+
+\item{estimator}{Character. \code{"add_one"} for \eqn{(r+1)/(n+1)} or
+\code{"paper"} for \eqn{r/n}.}
+
+\item{supremum}{Logical. Also compute the whole-curve supremum test.}
+
+\item{sup_standardize}{Logical. When \code{TRUE} (default), the supremum is
+taken over deviations standardised by the permutation standard deviation at
+each bandwidth, so every bandwidth contributes comparably. When
+\code{FALSE}, raw deviations are used, which follows the manuscript
+literally but is dominated by whichever bandwidth has the largest scale.}
 }
 \value{
-Same object with added slots:
-  \item{p_values}{Empirical p-values}
-  \item{z_scores}{Standardized effect sizes}
-  \item{perm_mean}{Mean of permutations}
-  \item{perm_sd}{SD of permutations}
-  \item{ci_lower}{Lower CI bound}
-  \item{ci_upper}{Upper CI bound}
-  \item{significant}{Logical. p < alpha}
+The same object with these slots populated: \code{p_values},
+  \code{z_scores}, \code{perm_mean}, \code{perm_sd}, \code{null_lower},
+  \code{null_upper}, \code{significant}, and when \code{supremum = TRUE},
+  \code{sup_statistic} and \code{sup_p_value}.
 }
 \description{
-Adds empirical p-values, z-scores, and confidence intervals to
-a kernelcomm_result object.
+Adds permutation p-values, a null envelope, and a whole-curve test to a
+\code{\linkS4class{kernelcomm_result}}.
 }
+\section{Tail direction}{
+
+The default is \code{"greater"}, a one-tailed upper test, matching the
+companion manuscript: "counting the number of permutations greater than the
+observed (one tailed) and dividing by the total number of permutations".
+
+This is a corrected default rather than a changed one. The previous version
+defaulted to \code{"two.sided"} but its two-sided branch was empty, so it
+returned a one-sided upper-tail p-value under a two-sided label. Its
+\code{"less"} option computed \code{1 - p}, which is not a p-value: it can be
+exactly 0, and it double-counts ties. Both are fixed, and \code{"two.sided"}
+now genuinely tests both tails.
+}
+
+\section{Estimator}{
+
+\code{"add_one"} (default) computes \eqn{(r + 1) / (n + 1)}, where \eqn{r}
+counts permutations at least as extreme as the observed value. \code{"paper"}
+computes \eqn{r / n}, matching the manuscript literally. \code{"add_one"} is
+the default because \eqn{r / n} can return exactly 0, which is not a valid
+p-value estimate and breaks any log transform or FDR procedure downstream; the
+two differ negligibly except in the far tail, which is exactly where a zero
+would matter.
+}
+
+\section{Null envelope, not a confidence interval}{
+
+\code{null_lower} and \code{null_upper} are quantiles of the \emph{permutation
+distribution}. They describe where \eqn{I(h)} would fall under complete spatial
+randomness, so the observed curve leaving the band is evidence against the
+null. They are not a confidence interval for the observed statistic, and were
+previously named \code{ci_lower}/\code{ci_upper} and plotted as though they
+were. The envelope level is now separate from the test threshold, which shared
+one \code{alpha} before, making a 95\% band with a 0.01 test impossible.
+}
+
+\section{Why z-scores should not be turned into p-values}{
+
+\code{z_scores} are provided as a comparable effect size, standardising the
+observed value by the permutation mean and standard deviation. Do not convert
+them with \code{pnorm()}. The permutation null of this statistic is skewed
+whenever the expression data is skewed, which for zero-inflated single-cell
+data is the normal case. On a deliberately adversarial example (300 cells, 85\%
+zeros, null skewness 2.4) a normal approximation returned an upper-tail
+probability 100 times too small at the 0.0001 level, which would manufacture
+false positives at exactly the threshold an FDR screen operates on. Use the
+permutation p-values, or the moment-based methods, which model the skewness.
+}
+
 \examples{
-\dontrun{
-result <- multiScaleAC(coords, gene1, gene2, h = c(10, 20, 40))
-result <- compute_significance(result)
-summary(result)  # Now shows p-values
+set.seed(1)
+n <- 200
+coords <- matrix(runif(2 * n), ncol = 2)
+g1 <- rnorm(n)
+# gene2 spatially related to gene1, so there is something to detect
+sm <- exp(-as.matrix(dist(coords))^2 / (2 * 0.1^2))
+g2 <- as.vector(sm \%*\% g1) / rowSums(sm) + rnorm(n, sd = 0.5)
+
+res <- multiScaleAC(coords, g1, g2, h = c(0.05, 0.1, 0.2), perms = 199)
+res <- compute_significance(res)
+summary(res)
+
+# Whole-curve significance, rather than one test per bandwidth
+res@sup_p_value
 }
+\seealso{
+\code{\link{adjust_pvalues}} for multiple-testing correction.
 }

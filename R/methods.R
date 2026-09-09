@@ -72,8 +72,8 @@ summary.kernelcomm_result <- function(object, alpha = 0.05, ...) {
     p_value = object@p_values,
     p_adjusted = p_adj,
     significant = object@p_values < alpha,
-    ci_lower = object@ci_lower,
-    ci_upper = object@ci_upper
+    null_lower = object@null_lower,
+    null_upper = object@null_upper
   )
   
   return(df)

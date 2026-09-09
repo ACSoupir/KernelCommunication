@@ -15,7 +15,7 @@ export_mxfda_batch(results, sample_ids = NULL, interaction_names = NULL)
 }
 \value{
 data.frame with columns: sample_id, interaction_name, r, sumfun, csr, fundiff,
-        p_value, z_score, ci_lower, ci_upper
+        p_value, z_score, null_lower, null_upper
 }
 \description{
 Converts a list of kernelcomm_result objects to a single data.frame

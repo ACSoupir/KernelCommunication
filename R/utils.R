@@ -39,7 +39,7 @@ lag_sparse = function(W_sparse, scaled_gene2){
 
 # Global variables for ggplot2 and R CMD check
 utils::globalVariables(c(
-  "ci_lower", "ci_upper", "h", "n_significant", "null", "perm", 
+  "null_lower", "null_upper", "h", "n_significant", "null", "perm", 
   "sample_id", "value", "y"
 ))
 

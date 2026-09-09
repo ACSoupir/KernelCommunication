@@ -7,21 +7,41 @@
 adjust_pvalues(result, method = "BH")
 }
 \arguments{
-\item{result}{Object of class \code{kernelcomm_result} (must have significance computed)}
+\item{result}{Object of class \code{\linkS4class{kernelcomm_result}} with
+significance already computed.}
 
-\item{method}{Character. One of "BH", "BY", "bonferroni", "holm", "hochberg", "hommel", "fdr", "none"}
+\item{method}{Character, passed to \code{\link[stats]{p.adjust}}. Note that
+\code{"BH"} and \code{"fdr"} are the same procedure under two names.}
 }
 \value{
-Object with added slot: p_adjusted
+The same object with \code{p_adjusted} populated.
 }
 \description{
-Applies multiple testing correction across bandwidths.
+Applies a multiple-testing correction to the per-bandwidth p-values of a
+single result.
 }
+\section{What this does and does not correct}{
+
+This corrects \emph{across the bandwidths of one gene pair}. Those tests are
+strongly positively dependent, because the kernels are nested on the same data
+and the same permutations, so a Benjamini-Hochberg or Bonferroni correction
+across them is conservative and not straightforward to interpret. If what you
+want is a global statement about the curve, prefer \code{sup_p_value} from
+\code{\link{compute_significance}}, which tests the whole curve directly and
+needs no correction across bandwidths.
+
+The manuscript applies its FDR threshold across \emph{gene pairs}, not across
+bandwidths. To reproduce that, collect one p-value per pair, for example
+\code{sup_p_value} or the value at a chosen bandwidth, and correct across the
+collection, as with the output of \code{\link{multiScaleAC_batch}}.
+}
+
 \examples{
-\dontrun{
-result <- multiScaleAC(coords, gene1, gene2, h = c(10, 20, 40))
-result <- compute_significance(result)
-result <- adjust_pvalues(result, method = "BH")
-summary(result)  # Shows adjusted p-values
-}
+set.seed(1)
+n <- 150
+coords <- matrix(runif(2 * n), ncol = 2)
+res <- multiScaleAC(coords, rnorm(n), rnorm(n), h = c(0.05, 0.1, 0.2), perms = 99)
+res <- compute_significance(res)
+res <- adjust_pvalues(res, method = "BH")
+summary(res)$p_adjusted
 }

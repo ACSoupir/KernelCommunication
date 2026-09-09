@@ -15,7 +15,7 @@ export_mxfda(result, sample_id = NULL, interaction_name = NULL)
 }
 \value{
 data.frame with columns: sample_id, interaction_name, r, sumfun, csr, fundiff,
-        p_value, z_score, ci_lower, ci_upper
+        p_value, z_score, null_lower, null_upper
 }
 \description{
 Converts kernelcomm_result to data.frame compatible with

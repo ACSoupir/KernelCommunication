@@ -5,7 +5,7 @@
 \alias{kernelcomm_result-class}
 \title{multiScaleAC Result Object}
 \description{
-S4 class for storing multi-scale Moran's I computation results.
+S4 class for storing multi-scale Moran's I results.
 }
 \section{Slots}{
 
@@ -14,7 +14,8 @@ S4 class for storing multi-scale Moran's I computation results.
 
 \item{\code{observed}}{Numeric vector of observed Moran's I values}
 
-\item{\code{permutations}}{Numeric matrix [n_h × n_perms] of permutation results}
+\item{\code{permutations}}{Numeric matrix (n_h x n_perms) of permuted values. May have
+zero columns when the result was computed with \code{perms = 0}.}
 
 \item{\code{coords}}{Matrix of original coordinates (for plotting)}
 
@@ -30,20 +31,38 @@ S4 class for storing multi-scale Moran's I computation results.
 
 \item{\code{call}}{Language. Function call that created this object}
 
-\item{\code{p_values}}{Numeric vector of empirical p-values (NULL until computed)}
+\item{\code{p_values}}{Numeric vector of p-values}
 
-\item{\code{z_scores}}{Numeric vector of z-scores (NULL until computed)}
+\item{\code{z_scores}}{Numeric vector of standardised effect sizes. These are effect
+sizes only; see \code{\link{compute_significance}} for why converting them
+to p-values with \code{pnorm()} is unsound for this statistic.}
 
-\item{\code{perm_mean}}{Numeric vector, mean of permutations (NULL until computed)}
+\item{\code{perm_mean}}{Numeric vector, mean of the permutation distribution}
 
-\item{\code{perm_sd}}{Numeric vector, SD of permutations (NULL until computed)}
+\item{\code{perm_sd}}{Numeric vector, standard deviation of the permutation
+distribution}
 
-\item{\code{ci_lower}}{Numeric vector, lower CI bound (NULL until computed)}
+\item{\code{null_lower}}{Numeric vector, lower bound of the null envelope. This is a
+quantile of the permutation distribution, describing where the statistic
+would fall under complete spatial randomness. It is not a confidence
+interval for the observed value, which is what the former name
+\code{ci_lower} wrongly implied.}
 
-\item{\code{ci_upper}}{Numeric vector, upper CI bound (NULL until computed)}
+\item{\code{null_upper}}{Numeric vector, upper bound of the null envelope}
 
-\item{\code{significant}}{Logical vector, p < alpha (NULL until computed)}
+\item{\code{significant}}{Logical vector, p below the chosen threshold}
 
-\item{\code{p_adjusted}}{Numeric vector, adjusted p-values (NULL until computed)}
+\item{\code{p_adjusted}}{Numeric vector, p-values after multiple-testing correction}
+
+\item{\code{sup_statistic}}{Numeric scalar, whole-curve supremum statistic}
+
+\item{\code{sup_p_value}}{Numeric scalar, p-value for the whole curve}
 }}
+
+\section{Uncomputed slots}{
+
+Optional slots are zero-length vectors until computed, not \code{NA}. So
+\code{length(x@p_values) == 0} means "not computed", which is distinguishable
+from a computed-but-missing value.
+}
 

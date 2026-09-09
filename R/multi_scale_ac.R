@@ -56,7 +56,7 @@
 #'   \item{seed}{numeric. Random seed used}
 #'   \item{n_cells}{integer. Number of cells}
 #'   \item{call}{language. Function call that created this object}
-#'   \item{p_values, z_scores, perm_mean, perm_sd, ci_lower, ci_upper, significant, p_adjusted}{NULL (computed by \code{\link{compute_significance}})}
+#'   \item{p_values, z_scores, perm_mean, perm_sd, null_lower, null_upper, significant, p_adjusted}{NULL (computed by \code{\link{compute_significance}})}
 #' }
 #'
 #' @details
