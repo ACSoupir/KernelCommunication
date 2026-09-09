@@ -1,4 +1,9 @@
 #!/usr/bin/env Rscript
+# ---------------------------------------------------------------------------
+# SUPERSEDED -- this script cannot run against the current API. It uses `$` on
+# the S4 kernelcomm_result returned by multiScaleAC(), which has no `$` method.
+# Replaced by tests/testthat/ and inst/validation/. See docs/RETRACTIONS.md.
+# ---------------------------------------------------------------------------
 # Benchmark and validate multiScaleAC against soupir_moran_multi (ground truth)
 # Tests both gaussian and uniform kernels
 

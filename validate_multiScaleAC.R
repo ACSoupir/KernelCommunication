@@ -1,4 +1,18 @@
 #!/usr/bin/env Rscript
+# ---------------------------------------------------------------------------
+# SUPERSEDED -- this script cannot run against the current API.
+#
+# It accesses `multi_result$observed` / `$permutations`, but multiScaleAC()
+# returns an S4 kernelcomm_result, which has no `$` method -- every such line
+# raises "$ operator not defined for this S4 class".
+#
+# It also uses h = 10, 20, 40, 80 on ccRCCExample, whose coordinates are in
+# millimetres spanning 1.02 mm. Those bandwidths make the kernel effectively
+# constant, so any agreement they show is vacuous. See docs/RETRACTIONS.md.
+#
+# Replaced by tests/testthat/ (correctness, pinned to soupir_moran_multi) and
+# inst/validation/ (benchmarks). Kept only for reference.
+# ---------------------------------------------------------------------------
 # Validation script: Compare multiScaleAC vs soupir_moran_bv
 # Goal: Verify multiScaleAC produces identical results to soupir_moran_bv (ground truth)
 

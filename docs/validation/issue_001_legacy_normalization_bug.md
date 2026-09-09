@@ -1,10 +1,36 @@
+> # ⛔ RETRACTED — THIS DOCUMENT IS WRONG. DO NOT ACT ON IT.
+>
+> The conclusion below is false. `soupir_moran_multi()` is **correct** and is the reference
+> implementation for this package. Nothing in it needs fixing, and no published analysis needs
+> re-running on account of it.
+>
+> Two specific errors:
+>
+> 1. **The algebra.** Lines 76 and 82 below write the "legacy" and "correct" sums as
+>    `Σ_i Σ_j g2[j]·K[i,j]·g1[i]/r[i]` and `Σ_i Σ_j g1[i]·K[i,j]·g2[j]/r[i]`. These are the *same
+>    expression* — an identical product written in a different factor order. The document then
+>    relabels the bound dummy indices on one side only and compares the relabelled form to the
+>    original, concluding non-equivalence. Relabelling bound indices cannot change a sum's value.
+> 2. **The 73% figure.** The demonstration uses `W_correct <- t(t(K) / r_sums)`, which evaluates to
+>    `K[i,j] / r_sums[j]` — **column**-normalized, not row-normalized. The 73% is the gap between
+>    row- and column-normalization, not an error in the reference. That snippet also uses `g1_s`/`g2_s`
+>    without ever defining them, so it cannot have run as written.
+>
+> Verified numerically: `v_h = K %*% (x/r)` equals `t(W) %*% x` to `2.2e-16`, so `I = x'Wy/S` exactly.
+> Also note the "Verification" section's claim that `E[I] = -1/(N-1)`: that is the *univariate* result.
+> Under this package's permutation scheme (permuting `y` only, both genes centred), `E[I] = 0` exactly.
+>
+> Full analysis: [`docs/RETRACTIONS.md`](../RETRACTIONS.md) §1. Retained only as a record of the claim.
+
+---
+
 # Issue #1: Legacy Function Row-Normalization Bug
 
-**Severity:** Critical (affects mathematical correctness)
+**Severity:** ~~Critical (affects mathematical correctness)~~ — retracted, see banner above
 
 **Date:** 2026-06-26
 
-**Status:** Resolved - New function is correct, legacy is buggy
+**Status:** RETRACTED — the reference implementation was never buggy
 
 ---
 

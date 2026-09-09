@@ -1,8 +1,40 @@
+## R session / IDE
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
-KernelCommunication.Rproj
-testing.R
+*.Rproj
+
+## compiled objects and shared libraries -- never commit build output
+*.o
+*.so
+*.dylib
+*.dll
+*.a
+src/symbols.rds
 src/archive/*
+
+## R CMD check / build output
+*.Rcheck/
+*.tar.gz
+check_output.txt
+
+## OS cruft
+.DS_Store
+
+## editor backups
+*.bak
+*~
+
+## scratch
+testing.R
 testing/*
+
+## external reference material (kept locally, not versioned)
+*.pdf
+
+## large generated report (regenerate from docs/benchmark/benchmark_comparison.Rmd)
+docs/benchmark/benchmark_comparison.html
+
+## generated validation output (regenerate from inst/validation/)
+inst/validation/output/

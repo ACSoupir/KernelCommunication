@@ -1,3 +1,25 @@
+> # ⚠️ RETRACTED — the status claims below are not accurate
+>
+> - **"Comprehensive Test Suite: 17/17 PASSING ✓"** and **"[x] Unit tests (17/17 passing)"** are
+>   false. No `tests/` directory existed anywhere in this repository or in its history, and no test
+>   file existed under any name, when this was written. Seventeen tests are named below; none existed.
+>   A real suite now lives in `tests/testthat/`.
+> - **"Status: ✅ COMPLETE - Ready for Production Use"** was asserted for a state whose default dense
+>   compute path contained an **uninitialized-memory read**: `src/moran_multi_cpp.cpp:94` reads
+>   `dist_sq`, which is only populated when `distance == "euclidean"`, so
+>   `kernel="gaussian", distance="manhattan"` computed the kernel from uninitialized heap.
+> - **"mxfda-compatible"** was never executed — `mxfda` appeared in no dependency field and was never
+>   called anywhere in the package.
+> - It marks "Week 3: Batch Processing - COMPLETE ✓" while `FEATURE_PLAN.md` records the same work as
+>   "Week 3 🔄 PARTIAL".
+>
+> The feature *inventory* below is broadly accurate — those files and functions do exist. It is the
+> verification and readiness claims that do not hold.
+>
+> Full analysis: [`docs/RETRACTIONS.md`](docs/RETRACTIONS.md) §5.
+
+---
+
 # KernelCommunication Package - Implementation Complete
 
 ## Overview

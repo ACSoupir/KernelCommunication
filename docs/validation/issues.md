@@ -68,21 +68,14 @@ for (int i = 0; i < N; i++) {
 
 ---
 
-## Issue #004: Permutation Value Mismatch
+## Issue #004: Permutation Value Mismatch — RETRACTED
 
-**Date:** 2026-06-26  
-**Severity:** Low  
-**Status:** EXPECTED BEHAVIOR  
+This entry claimed that permutation values differ between the R and C++ paths because the C++ code
+used `std::rand()` with a Fisher-Yates shuffle, and recorded that as expected behaviour.
 
-**Description:** Permutation values differ between legacy (R) and new (C++) implementations.
-
-**Root Cause:** Different random number generators and shuffle algorithms:
-- Legacy: R's Mersenne Twister + `sample()`
-- New: C++ `std::rand()` + Fisher-Yates shuffle
-
-**Resolution:** Documented as expected behavior. Distributions are statistically equivalent.
-
-**Files Modified:** `docs/validation/validation_report.md`
+The C++ code contains no random number generator. The permutation matrix is built in R with the same
+`set.seed` / `replicate` / `sample` sequence as the reference implementation, and the same matrix is
+reused across all bandwidths in both, so the permutations agree exactly. See `docs/RETRACTIONS.md` §3.
 
 ---
 
@@ -93,6 +86,7 @@ for (int i = 0; i < N; i++) {
 | #001: Missing import | Low | RESOLVED |
 | #002: Coordinate centering | Medium | RESOLVED |
 | #003: Row-normalization | Critical | RESOLVED |
-| #004: Permutation mismatch | Low | EXPECTED |
+| #004: Permutation mismatch | — | RETRACTED (see `docs/RETRACTIONS.md`) |
 
-**All critical issues resolved. Package ready for release.**
+Issues #001-#003 are sound. For claims made elsewhere in this repository that did not hold, see
+`docs/RETRACTIONS.md`.

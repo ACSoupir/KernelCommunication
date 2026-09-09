@@ -1,7 +1,27 @@
+> # ⚠️ RETRACTED AS EVIDENCE
+>
+> Finding 1 below — "Observed values match exactly (within 1e-14)" — is **true**, and it directly
+> contradicts `issue_001_legacy_normalization_bug.md` in the same directory, which claims the same
+> comparison shows a 73% error. This document is right and that one is wrong.
+>
+> Retracted regardless, because:
+>
+> - Finding 3, **"Analytical inference methods validated"**, is false. No analytical inference code
+>   was active; the only such function was commented out at `R/multi_scale_ac.R:467-484`.
+> - Finding 2, "Permutation values differ (different RNG implementations)", is false. The C++ code
+>   contains no RNG; permutations are generated in R with the same seed and call sequence as the
+>   reference, and they agree exactly.
+> - The comparison ran at bandwidths where `ccRCCExample`'s millimetre coordinates make the kernel
+>   effectively constant, so "matches to 1e-14" is agreement on a degenerate configuration.
+>
+> Full analysis: [`docs/RETRACTIONS.md`](../RETRACTIONS.md) §2, §3, §6.
+
+---
+
 # Validation Report: multiScaleAC() vs soupir_moran_multi()
 
 **Date:** 2026-06-26  
-**Status:** PASSED  
+**Status:** ~~PASSED~~ RETRACTED — see banner above  
 **Package Version:** 1.0  
 
 ---

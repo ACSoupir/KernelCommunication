@@ -1,5 +1,29 @@
+################################################################################
+# RETRACTED -- THIS "PASSED" RESULT ESTABLISHES NOTHING. See docs/RETRACTIONS.md
+#
+# The bandwidths used below (h = 10, 20, 40, 80) are wrong by three orders of
+# magnitude for this dataset. ccRCCExample coordinates are in MILLIMETRES: they
+# span 1.02 x 1.02 mm, median nearest-neighbour distance 0.0073 mm. At h = 10,
+# every off-diagonal Gaussian weight is >= 0.9999 and the mean row sum is over
+# 7119 of the 7122 cells -- the kernel is a constant matrix, so Moran's I
+# collapses toward zero. That is why every observed value below is ~2e-6.
+#
+# Agreement to 1e-18 between two implementations of a constant kernel is
+# agreement on an arithmetic identity. It would hold whether or not either
+# implementation were correct. It is not evidence of correctness.
+#
+# The manuscript's h = 10..250 is in MICROMETRES, i.e. h = 0.01..0.25 here.
+#
+# The 71.65x "speedup" is also not like-for-like: it times four separate
+# soupir_moran_bv() calls, each rebuilding the kernel, against one multiScaleAC()
+# call that builds the distance matrix once and reuses it across all four
+# bandwidths. That is amortization, not a C++-versus-R gain.
+#
+# Superseded by tests/testthat/ and the benchmark in inst/validation/.
+################################################################################
+
 VALIDATION RESULTS: multiScaleAC vs soupir_moran_bv
-Date: 2026-07-01 09:36:33 
+Date: 2026-07-01 09:36:33
 
 Dataset: ccRCCExample (7122 cells)
 Bandwidths:  10, 20, 40, 80 

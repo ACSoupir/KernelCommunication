@@ -1,4 +1,16 @@
 #!/usr/bin/env Rscript
+# ---------------------------------------------------------------------------
+# SUPERSEDED -- this script cannot run against the current API. It uses `$` on
+# the S4 kernelcomm_result returned by multiScaleAC(), which has no `$` method.
+#
+# Note also that its "TEST 3: Manhattan Distance" exercised
+# kernel="gaussian", distance="manhattan", which read uninitialized memory
+# (src/moran_multi_cpp.cpp:94), and asserted only !is.na() -- so it would have
+# reported PASSED on garbage. That bug is fixed; the test that replaces this
+# one compares against an explicit R Manhattan implementation instead.
+#
+# Replaced by tests/testthat/ and inst/validation/. See docs/RETRACTIONS.md.
+# ---------------------------------------------------------------------------
 # Final comprehensive benchmark: multiScaleAC vs ground truth functions
 # Validates accuracy and performance
 

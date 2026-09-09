@@ -1,3 +1,24 @@
+> # ⚠️ RETRACTED AS EVIDENCE — but the formula itself is correct
+>
+> **The mathematics below is right.** `E[I] = 0` and `Var(I) = ||W'x||² / (N-1)²` both hold, and they
+> are retained and generalized in the current implementation as the special case of the exact second
+> moment `Var(I) = A2·B2/((n-1)·S²)` when both genes are z-scored (so `B2 = S = n-1`).
+>
+> What is retracted is every empirical claim made about it:
+>
+> - The report is titled a test report, marks every case "✓ PASSED", and concludes
+>   **"READY FOR PRODUCTION"** — for code that is **commented out** at `R/multi_scale_ac.R:467-484`
+>   and therefore never executed. Its numbers cannot have come from the state it describes.
+> - Its accuracy tables use bandwidths 25–250 on `ccRCCExample`, whose coordinates are in
+>   **millimetres** spanning 1.02 mm. At those bandwidths every off-diagonal weight is ≥ 0.9999 and
+>   the kernel is effectively a constant matrix — a degenerate regime that validates nothing.
+> - Its framing is inverted: it attributes "~2% Monte Carlo error" to the analytical value. The
+>   analytical moments are **exact**; it is the empirical estimate that carries Monte Carlo error.
+>
+> Full analysis: [`docs/RETRACTIONS.md`](../RETRACTIONS.md) §4.
+
+---
+
 # Analytical Variance Fix - Test Report
 
 ## Summary
