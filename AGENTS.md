@@ -63,8 +63,9 @@ headers). Use the base `R CMD` tooling and `testthat::test_local()` directly rat
   - `RcppExports.cpp` — generated, do not edit
 - `tests/testthat/` — suite pinned to the reference implementation, with fixtures
 - `data/`, `data-raw/` — packaged `ccRCCExample` dataset and its preparation script
-- `docs/` — development notes from earlier design rounds. Treat them as historical: they predate the
-  current compute core and inference code, and some describe behaviour that no longer exists.
+- `process_docs/` — development notes from earlier design rounds. Treat them as historical: they
+  predate the current compute core and inference code, and some describe behaviour that no longer
+  exists. Build-ignored, so they do not ship in the package.
 - `inst/validation/` — benchmarks and the approximation calibration harness
 - `plans/` — implementation plans
 

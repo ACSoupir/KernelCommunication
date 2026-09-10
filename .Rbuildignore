@@ -11,7 +11,7 @@
 ^FEATURE_PLAN\.md$
 ^AGENTS\.md$
 ^plans$
-^docs$
+^process_docs$
 ^_pkgdown\.yml$
 ^pkgdown-site$
 ^.*\.pdf$

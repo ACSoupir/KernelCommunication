@@ -33,14 +33,12 @@ testing/*
 ## external reference material (kept locally, not versioned)
 *.pdf
 
-## large generated report (regenerate from docs/benchmark/benchmark_comparison.Rmd)
-docs/benchmark/benchmark_comparison.html
+## large generated report (regenerate from process_docs/benchmark/benchmark_comparison.Rmd)
+process_docs/benchmark/benchmark_comparison.html
 
 ## generated validation output (regenerate from inst/validation/)
 inst/validation/output/
 
-## pkgdown output (destination is moved so it cannot overwrite docs/)
-pkgdown-site/
 
 ## knitr scratch from running vignettes outside R CMD build
 vignettes/figure/

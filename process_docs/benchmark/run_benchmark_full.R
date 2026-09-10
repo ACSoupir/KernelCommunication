@@ -78,8 +78,8 @@ cat("  Total bandwidths: 50\n")
 cat("  Permutations: 100\n")
 cat("  Benchmark iterations: 5\n\n")
 
-rmd_file <- "docs/benchmark/benchmark_comparison.Rmd"
-output_file <- "docs/benchmark/benchmark_comparison_full.html"
+rmd_file <- "process_docs/benchmark/benchmark_comparison.Rmd"
+output_file <- "process_docs/benchmark/benchmark_comparison_full.html"
 
 if (!file.exists(rmd_file)) {
   cat("  ERROR: R Markdown file not found:", rmd_file, "\n")

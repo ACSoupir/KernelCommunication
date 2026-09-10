@@ -74,8 +74,8 @@ cat("  Dataset loaded:", nrow(ccRCCExample), "cells\n\n")
 
 cat("Step 4: Running benchmark...\n")
 
-rmd_file <- file.path(getwd(), "docs/benchmark/benchmark_comparison.Rmd")
-output_file <- file.path(getwd(), "docs/benchmark/benchmark_comparison.html")
+rmd_file <- file.path(getwd(), "process_docs/benchmark/benchmark_comparison.Rmd")
+output_file <- file.path(getwd(), "process_docs/benchmark/benchmark_comparison.html")
 
 cat("  Rmd file:", rmd_file, "\n")
 cat("  Output file:", output_file, "\n")
