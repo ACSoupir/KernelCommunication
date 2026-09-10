@@ -46,3 +46,6 @@ vignettes/*.md
 
 ## working plans (kept locally, not published)
 plans/
+
+## pkgdown output: built by .github/workflows/pkgdown.yaml, not committed
+docs/

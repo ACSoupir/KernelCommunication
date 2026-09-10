@@ -1,15 +1,15 @@
 # pkgdown configuration.
 #
-# NOTE ON `destination`. pkgdown writes to `docs/` by default, and this repository already uses
-# `docs/` for hand-written development notes. Building with the default would destroy them. The
-# destination is therefore moved, and `pkgdown-site/` is both gitignored and build-ignored.
+# Writes to the default `docs/`, which is build output and is gitignored. The site is built and
+# published by .github/workflows/pkgdown.yaml on every push to the default branch, so generated HTML
+# never enters the source tree and cannot drift from the code it documents.
 #
-# NOT VERIFIED. pkgdown could not be installed in the environment this was written in (its
-# dependency chain needs system libraries that were unavailable), so this configuration has not been
-# executed. Treat it as a starting point rather than a tested build.
-destination: pkgdown-site
+# `docs/` was previously occupied by hand-written development notes; those now live in
+# `process_docs/`, which freed the conventional destination.
+#
+# To build locally instead: pkgdown::build_site()
 
-url: ~
+url: https://acsoupir.github.io/KernelCommunication/
 
 home:
   title: Multi-scale spatial autocorrelation with Moran's I

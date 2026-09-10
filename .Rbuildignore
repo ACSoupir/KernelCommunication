@@ -12,6 +12,7 @@
 ^AGENTS\.md$
 ^plans$
 ^process_docs$
+^docs$
 ^_pkgdown\.yml$
 ^pkgdown-site$
 ^.*\.pdf$

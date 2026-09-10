@@ -16,7 +16,8 @@ Description: Computes bivariate Moran's I as a function of Gaussian kernel
     interoperable with functional data analysis via 'mxfda'. Implements the
     method described in Soupir et al. (2026) <doi:10.64898/2026.07.14.738306>.
 License: GPL (>= 2)
-URL: https://github.com/ACSoupir/KernelCommunication
+URL: https://github.com/ACSoupir/KernelCommunication,
+    https://acsoupir.github.io/KernelCommunication/
 BugReports: https://github.com/ACSoupir/KernelCommunication/issues
 Imports: Rcpp (>= 1.0.13),
     Matrix,
@@ -36,5 +37,6 @@ Depends:
 LazyData: true
 Encoding: UTF-8
 VignetteBuilder: knitr
+Config/Needs/website: pkgdown
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.0
