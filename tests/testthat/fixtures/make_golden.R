@@ -13,7 +13,7 @@
 # nearest-neighbour distance of 0.0073 mm. The manuscript's bandwidth range of 10-250 is in
 # micrometres, i.e. h = 0.01 to 0.25 here. Earlier validation in this repository used h = 10..250,
 # which drives every off-diagonal weight to >= 0.9999 and makes the kernel a constant matrix -- so
-# it appeared to pass while testing nothing (see docs/RETRACTIONS.md). Every case below records
+# it appeared to pass while testing nothing. Every case below records
 # mean_rowsum so test-fixture-sanity.R can fail if a bandwidth is degenerate.
 
 # Locate the package root by walking up until DESCRIPTION is found, so this script works whether it

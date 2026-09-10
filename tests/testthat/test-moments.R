@@ -53,9 +53,8 @@ test_that("the closed-form cross-bandwidth covariance matches the empirical one"
 })
 
 test_that("the exact variance reduces to the known special case", {
-  # With both genes z-scored, Var(I) = ||t(W) x||^2 / (n-1)^2. That is the formula the retracted
-  # analytical-variance note gave; the mathematics there was correct even though its evidence was
-  # not (docs/RETRACTIONS.md section 4). Confirming it keeps that distinction honest.
+  # With both genes z-scored, Var(I) = ||t(W) x||^2 / (n-1)^2, which is the classical special case.
+  # Confirming it pins the general formula against a result that can be derived independently.
   set.seed(3)
   n <- 120
   coords <- matrix(runif(2 * n), ncol = 2)

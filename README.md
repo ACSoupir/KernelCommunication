@@ -74,7 +74,7 @@ everyone's neighbour. The kernel is constant, so `I(h)` collapses toward zero fo
 every gene pair — about `2e-06` here, against `5e-02` at a sensible bandwidth.
 Earlier validation in this repository ran entirely inside that regime and reported
 agreement to `1e-18`, which is agreement on an arithmetic identity rather than
-evidence of anything (see [`docs/RETRACTIONS.md`](docs/RETRACTIONS.md)).
+evidence of anything.
 
 The manuscript's range of 10–250 is in **micrometres**, i.e. `0.01`–`0.25` here.
 Use `suggest_bandwidths()`, then check `qc_neighborhoods()`.
@@ -153,8 +153,6 @@ fixture is generated from it, and a test detects any edit to it.
 - `vignette("multiScaleAC")` — choosing bandwidths, reading the curve, inference
 - [`inst/validation/results/README.md`](inst/validation/results/README.md) — what
   was measured, and what failed
-- [`docs/RETRACTIONS.md`](docs/RETRACTIONS.md) — earlier claims in this repository
-  that do not hold
 
 ## Citation
 

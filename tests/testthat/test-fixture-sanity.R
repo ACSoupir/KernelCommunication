@@ -5,8 +5,7 @@
 # >= 0.9999 and the mean row sum to over 7119 of 7122 cells. The kernel becomes a constant matrix,
 # Moran's I collapses to ~2e-6, and two implementations agree to 1e-18 on what is essentially an
 # arithmetic identity. "OVERALL: PASSED" was reported. Nothing had been tested.
-#
-# See docs/RETRACTIONS.md section 6.
+
 
 test_that("no fixture bandwidth is in the saturated regime", {
   for (cs in golden_cases()) {

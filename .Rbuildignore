@@ -9,14 +9,9 @@
 ^check_output\.txt$
 ^.*\.bak$
 ^FEATURE_PLAN\.md$
-^IMPLEMENTATION_COMPLETE\.md$
 ^AGENTS\.md$
 ^plans$
 ^docs$
-^validation_results\.txt$
-^validate_multiScaleAC\.R$
-^benchmark_kernels\.R$
-^final_benchmark\.R$
 ^_pkgdown\.yml$
 ^pkgdown-site$
 ^.*\.pdf$

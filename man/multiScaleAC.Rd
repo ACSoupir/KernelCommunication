@@ -131,9 +131,13 @@ Inference is by permutation of the second gene.
   \item \code{"uniform"}: \eqn{w_{ij} = 1} if \eqn{d_{ij} \le h}, else 0.
     A hard radius, so cells can genuinely have no neighbours; see
     \code{nan_policy}.
-  \item \code{"exponential"}: \eqn{w_{ij} = \exp(-d_{ij} / h)}. Heavier
-    tailed than the Gaussian at the same bandwidth, so a given \code{h} reaches
-    further.
+  \item \code{"exponential"}: \eqn{w_{ij} = \exp(-d_{ij} / h)}. Note the shape
+    relative to the Gaussian, because the intuitive reading is wrong: it is
+    \emph{smaller} than \eqn{\exp(-d^2/2h^2)} for \eqn{d < 2h} and larger only
+    beyond, crossing over at exactly \eqn{d = 2h}. So it decays faster near the
+    origin and has the heavier tail further out, and because the near field
+    dominates the row sum, a given \code{h} gives a \emph{smaller} effective
+    neighbourhood than the Gaussian rather than a larger one.
 }
 
 The diagonal is always zero: a cell is not its own neighbour, which for single

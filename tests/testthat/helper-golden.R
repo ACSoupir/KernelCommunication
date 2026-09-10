@@ -29,5 +29,5 @@ REFERENCE_TOLERANCE <- 1e-12
 # A bandwidth is degenerate when almost every cell carries near-full weight: the kernel becomes a
 # constant matrix and Moran's I collapses toward zero, so agreement between two implementations
 # proves nothing. Earlier validation in this repository ran entirely inside this regime because
-# ccRCCExample's coordinates are in millimetres and it used h = 10..250 (see docs/RETRACTIONS.md).
+# ccRCCExample's coordinates are in millimetres, and h = 10..250 sits entirely inside that regime.
 MAX_SATURATION <- 0.80   # mean row sum as a fraction of N

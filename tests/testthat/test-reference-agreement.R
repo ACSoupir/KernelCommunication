@@ -21,7 +21,7 @@ test_that("multiScaleAC reproduces the reference observed curve", {
 test_that("multiScaleAC reproduces the reference permutation matrix", {
   # Permutations must agree exactly, not just distributionally: both paths draw the same permutation
   # set from the same seed and reuse it across all bandwidths. An earlier note in this repository
-  # claimed they differ because of a C++ RNG; there is no RNG in the C++ (see docs/RETRACTIONS.md).
+  # claimed they differ because of a C++ RNG; there is no RNG in the C++ at all.
   for (nm in WELL_BEHAVED) {
     cs <- golden_cases()[[nm]]
     res <- multiScaleAC(cs$coords, cs$gene1, cs$gene2,

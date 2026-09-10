@@ -45,3 +45,6 @@ pkgdown-site/
 ## knitr scratch from running vignettes outside R CMD build
 vignettes/figure/
 vignettes/*.md
+
+## working plans (kept locally, not published)
+plans/

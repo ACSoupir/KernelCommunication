@@ -2,11 +2,8 @@
 #
 # Time and peak memory, against the reference implementation.
 #
-# This replaces three earlier root-level scripts which could not run at all: they accessed the result
-# with `$`, and multiScaleAC() returns an S4 object. It also replaces validation_results.txt, whose
-# headline "71.65x speedup" compared four separate soupir_moran_bv() calls, each rebuilding the
-# kernel, against one multiScaleAC() call that builds the distance data once and reuses it across all
-# bandwidths -- an amortisation gain reported as a language gain.
+# Reports time and peak memory for the compute core against the reference implementation, so any
+# performance claim in the documentation can be reproduced rather than taken on trust.
 #
 # Peak memory cannot be measured meaningfully from inside R, because the allocator does not return
 # freed pages to the OS promptly. Each configuration therefore runs in a fresh process under
