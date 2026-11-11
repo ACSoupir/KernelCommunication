@@ -1,20 +1,42 @@
-Package: KernelCommunication
+Package: multiScaleAC
 Type: Package
-Title: Package to Calculate Moran's I over Range of Scales
-Version: 1.0
-Date: 2025-04-17
-Authors@R: 
+Title: Multi-Scale Spatial Autocorrelation with Moran's I
+Version: 0.2.0
+Date: 2026-09-08
+Authors@R:
     c(
-      person("Alex", "Soupir", , "alex.soupir@moffitt.org", role = c("aut", "cre"),
-           comment = c(ORCID = "XX"))
+      person("Alex", "Soupir", , "alex.soupir@moffitt.org", role = c("aut", "cre"))
     )
-Description: Provides an easy-to-use interface to calculate bivariate Moran's I. Weights are a function of the bandwidth of a gaussian kernel applied to the distance matrix.
+Description: Computes bivariate Moran's I as a function of Gaussian kernel
+    bandwidth, yielding a functional curve over spatial scales rather than a
+    single value at one arbitrarily chosen scale. Weights are taken directly
+    from the kernel with row standardisation and no minimum weight threshold,
+    so no spots or cells are discarded from the weight matrix. Intended for
+    ligand-receptor interaction analysis in spatial transcriptomics, and
+    interoperable with functional data analysis via 'mxfda'. Implements the
+    method described in Soupir et al. (2026) <doi:10.64898/2026.07.14.738306>.
 License: GPL (>= 2)
+URL: https://github.com/ACSoupir/KernelCommunication,
+    https://acsoupir.github.io/KernelCommunication/
+BugReports: https://github.com/ACSoupir/KernelCommunication/issues
 Imports: Rcpp (>= 1.0.13),
-  Matrix
+    Matrix,
+    ggplot2,
+    methods,
+    parallel,
+    stats,
+    utils
+Suggests: testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    mxfda,
+    PearsonDS
 LinkingTo: Rcpp, RcppEigen
-RoxygenNote: 7.3.2
-Depends: 
+Depends:
     R (>= 3.5)
 LazyData: true
 Encoding: UTF-8
+VignetteBuilder: knitr
+Config/Needs/website: pkgdown
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.0

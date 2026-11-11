@@ -2,6 +2,16 @@
 #'
 #' A core from a TMA of clear cell renal cell carcinoma samples subjected to single cell spatial transcriptomics with CosMx SMI.
 #'
+#' Coordinates are in \strong{millimetres}, spanning roughly 1.02 x 1.02 mm with
+#' a median nearest-neighbour distance of 0.0073 mm. Bandwidths for this dataset
+#' therefore belong in the range 0.01 to 0.25, which corresponds to the 10-250
+#' micrometre range used in the companion manuscript. Passing bandwidths of 10
+#' or more drives every pairwise weight to approximately 1, making the kernel a
+#' constant matrix and collapsing Moran's I toward zero.
+#'
+#' @name ccRCCExample
+#' @docType data
+#' @keywords datasets
 #' @format ## `ccRCCExample`
 #' A data frame with 7,122 rows and 12 columns:
 #' \describe{
@@ -19,4 +29,5 @@
 #'   \item{unique_core}{unique identifier for the TMA core given the slide and core}
 #' }
 #' @source Mitchell Hayes
-"ccRCCExample"
+#' @usage data(ccRCCExample)
+NULL

@@ -1,0 +1,307 @@
+---
+title: "Multi-scale spatial autocorrelation with multiScaleAC"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Multi-scale spatial autocorrelation with multiScaleAC}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE, comment = "#>",
+  fig.width = 7, fig.height = 4.2, dpi = 96
+)
+set.seed(20260908)
+```
+
+```{r}
+library(multiScaleAC)
+data(ccRCCExample)
+```
+
+## The idea
+
+Bivariate Moran's I measures whether one gene's expression at a location coincides
+with a second gene's expression *nearby*. "Nearby" has to be defined, and the usual
+definitions — a radius, a *k*-nearest-neighbour count, a single kernel bandwidth —
+each impose a scale that the analyst has to pick. The answer then depends on that
+choice.
+
+`multiScaleAC()` computes the statistic across a range of Gaussian kernel
+bandwidths, giving a curve $I(h)$ rather than a point. The scale becomes something
+you read off the result instead of something you assume.
+
+Weights are taken directly from the kernel, row standardised, with no minimum
+weight threshold. Every pair of cells contributes something.
+
+## Choosing bandwidths: read this part
+
+Bandwidths are in the units of your coordinates, and getting the scale wrong is the
+single most common way to produce a confidently meaningless result.
+
+The bundled data is a clear-cell renal cell carcinoma CosMx core, with coordinates
+in **millimetres**:
+
+```{r}
+coords <- as.matrix(ccRCCExample[, c("x", "y")])
+range(coords[, 1])
+diff(range(coords[, 1]))    # the whole core is about 1 mm across
+```
+
+So a bandwidth of 1 already spans the entire sample, and a bandwidth of 25 is
+twenty-five times wider than the tissue. Here is what that does:
+
+```{r}
+qc_neighborhoods(coords[1:2000, ], h = c(0.005, 0.02, 0.1, 0.25, 25))
+```
+
+Read the `saturation` column. It is the mean kernel row sum as a fraction of the
+sample size — the share of the sample each cell effectively treats as its
+neighbourhood. At `h = 25` it is 0.9995: every cell is everyone's neighbour, the
+weight matrix is essentially constant, and a constant weight matrix cannot detect
+spatial structure. $I(h)$ collapses toward zero no matter what the biology is.
+
+At the other end, `h = 0.005` gives about one effective neighbour per cell, which
+is too few to be stable.
+
+Let the data suggest the range:
+
+```{r}
+h <- suggest_bandwidths(coords, n_bandwidths = 8, range = "medium")
+round(h, 4)
+attr(h, "scale_reference")
+```
+
+`median_nn_distance` is the typical distance to a cell's nearest neighbour and
+`extent` is the span of the sample; the suggestions are spaced geometrically
+between the two, because the statistic responds to neighbourhood *area* rather
+than to `h` linearly.
+
+If your coordinates are in micrometres rather than millimetres, every number above
+is a thousand times larger. The manuscript's stated range of 10–250 is in
+micrometres, which is `0.01`–`0.25` in this dataset's units. That is the same
+range, described in different units — and it is exactly the confusion to watch for.
+
+## Computing a curve
+
+```{r}
+res <- multiScaleAC(
+  coords, ccRCCExample$CD274, ccRCCExample$PDCD1,
+  h = h, perms = 999
+)
+res
+```
+
+The result carries only the raw computation. Inference is a separate step, so you
+can compute once and test in several ways.
+
+```{r}
+res <- compute_significance(res)
+summary(res)
+```
+
+## Reading the curve
+
+```{r}
+plot(res)
+```
+
+The solid line is the observed $I(h)$. The dashed line is the mean of the
+permutation distribution, which is analytically zero. The shaded band is the
+**null envelope**: quantiles of the permutation distribution, showing where the
+statistic would fall under complete spatial randomness. Observed values outside the
+band are evidence against the null.
+
+It is *not* a confidence interval for the observed curve. That distinction is why
+the slots are called `null_lower` and `null_upper`.
+
+Subtracting the null mean is often easier to read, and is what the manuscript
+plots:
+
+```{r}
+plot(res, type = "difference")
+```
+
+To see directly whether the observed curve is unusual, draw some of the null
+curves behind it:
+
+```{r}
+plot_scale_curve(res, show_permutations = TRUE, show_permutations_n = 100)
+```
+
+And the null distribution at a single bandwidth:
+
+```{r}
+plot_permutation_distribution(res, h_index = 3)
+```
+
+## Significance
+
+### One test per bandwidth, or one for the curve
+
+Testing every bandwidth separately raises a multiplicity problem, and correcting
+for it is awkward because the tests are strongly dependent: the kernels are nested
+on the same cells and the same permutations. `adjust_pvalues()` will apply a
+correction across bandwidths if you want one, but it is conservative and hard to
+interpret.
+
+The manuscript's whole-curve **supremum** test avoids the issue by asking one
+question of the entire curve. It is computed by default:
+
+```{r}
+res@sup_statistic
+res@sup_p_value
+```
+
+For a screen over many gene pairs, this is usually the number you want per pair,
+with FDR applied across pairs.
+
+### Tail direction
+
+The default is `"greater"`, a one-tailed upper test, matching the manuscript. Use
+`"two.sided"` if depletion — one gene surrounded by *less* of the other than
+chance — is also of interest, since the upper-tail test cannot see it:
+
+```{r}
+two <- compute_significance(res, alternative = "two.sided")
+data.frame(h = round(res@h, 3), greater = res@p_values, two_sided = two@p_values)
+```
+
+### Do not normal-approximate the z-scores
+
+`z_scores` is an effect size, standardising the observed value by the permutation
+mean and standard deviation. It is tempting to convert it with `pnorm()`. Do not.
+
+The permutation null of this statistic is skewed whenever the expression data is
+skewed, which for zero-inflated single-cell measurements is the ordinary case:
+
+```{r}
+round(res@moment_skewness, 3)
+```
+
+Those are *exact* skewness values, not estimates (see below). Where they are
+appreciable, a symmetric normal tail is wrong, and it is wrong in the dangerous
+direction: on this dataset a normal approximation understates the upper tail by two
+orders of magnitude at the thresholds an FDR screen operates at. Use the
+permutation p-values, or the moment-based ones, which model the skewness.
+
+## Inference without permutations
+
+Because the weight matrix is row standardised and both genes are z-scored, the
+statistic is a **linear permutation statistic** — a fixed vector paired with a
+random permutation of another. Such statistics have closed-form moments. So the
+mean, variance, skewness and kurtosis of the null, and the whole cross-bandwidth
+covariance matrix, are available exactly, at `O(N)` cost per bandwidth, and are
+computed by default:
+
+```{r}
+data.frame(
+  h        = round(res@h, 4),
+  variance = signif(res@moment_var, 3),
+  skewness = round(res@moment_skewness, 3),
+  leverage = round(res@leverage, 4)
+)
+```
+
+`leverage` is the largest single cell's share of the null variance. It is the
+diagnostic for whether a smooth approximation to the null can be trusted: values
+near 1 mean one cell dominates the statistic and no continuous approximation will
+hold. It falls as bandwidth grows, which is why small bandwidths are the unstable
+end of the curve.
+
+You can skip permutations entirely:
+
+```{r}
+fast <- multiScaleAC(coords, ccRCCExample$CD274, ccRCCExample$PDCD1,
+                     h = h, permute = "none")
+fast <- compute_significance(fast, method = "moment")
+data.frame(h = round(h, 4),
+           permutation = signif(res@p_values, 3),
+           moment = signif(fast@p_values, 3))
+```
+
+Or permute only where the diagnostics say it is necessary, and let
+`method = "auto"` choose per bandwidth:
+
+```{r}
+mixed <- multiScaleAC(coords, ccRCCExample$CD274, ccRCCExample$PDCD1,
+                      h = h, perms = 999, permute = "flagged")
+mixed <- compute_significance(mixed, method = "auto")
+data.frame(h = round(h, 4), method = mixed@p_method, p = signif(mixed@p_values, 3))
+```
+
+### What this trade-off actually is
+
+Not speed. For one gene pair the kernel sweep dominates, so dropping permutations
+saves roughly 1.7× on memory and about a tenth of the wall clock.
+
+What it buys is **resolution**. With `perms = 999` the smallest p-value expressible
+is `1/1000`, so `p = 0.001` and `p = 1e-6` are indistinguishable, and reaching
+`1e-5` requires around 100,000 permutations. The moment route has no such floor,
+and it is accurate there: it matches a 499,999-permutation run to under 1%.
+
+The moments are exact; turning them into a tail probability is not. The default
+mapping was chosen by measuring four candidates against 200,000 permutations, and
+`inst/validation/results/README.md` records what won, what lost, and two outcomes
+that contradict what theory would predict.
+
+## Many samples
+
+```{r}
+fovs <- split(ccRCCExample, ccRCCExample$fov)
+fovs <- fovs[vapply(fovs, nrow, integer(1)) > 200]
+fovs <- fovs[1:4]
+
+results <- multiScaleAC_batch(
+  fovs, h_vec = c(0.02, 0.05, 0.1, 0.2), perms = 199, verbose = FALSE
+)
+results <- lapply(results, compute_significance)
+plot_batch_comparison(results, value_var = "z_score")
+```
+
+For long batches, pass `checkpoint_dir` and the run becomes resumable: each sample
+is written as it completes, and re-running skips what is already done. On Unix,
+`n_cores` forks.
+
+## Handing off to functional data analysis
+
+A curve per gene pair is what makes functional data analysis natural, and it is
+what the manuscript does — functional principal component analysis over the
+interaction curves, then a test on the first component.
+
+```{r}
+mx <- export_mxfda(results[[1]], sample_id = names(results)[1])
+head(mx)
+```
+
+The columns match what `mxfda::add_summary_function()` expects. One caveat worth
+knowing: the bandwidth is placed in mxfda's radius column `r`, and a bandwidth is
+not a radius — a radius is a hard cutoff, a Gaussian bandwidth is an unbounded
+scale. The substitution is fine for a functional analysis over nested scales, but
+these curves should not be pooled with radius-based summary functions such as
+Ripley's K. See `?export_mxfda`.
+
+## Compatibility
+
+`soupir_moran_multi()` is the reference implementation, and stays supported
+permanently. It is not deprecated. It is also the oracle for the whole test suite:
+every fixture is generated from it, and a test detects any change to it.
+
+```{r}
+ref <- soupir_moran_multi(coords[1:400, ], ccRCCExample$CD274[1:400],
+                          ccRCCExample$PDCD1[1:400],
+                          h_vec = c(0.05, 0.1), perms = 99, seed = 333)
+new <- multiScaleAC(coords[1:400, ], ccRCCExample$CD274[1:400],
+                    ccRCCExample$PDCD1[1:400],
+                    h = c(0.05, 0.1), perms = 99, seed = 333)
+max(abs(ref$observed - new@observed))
+```
+
+## Session info
+
+```{r}
+sessionInfo()
+```

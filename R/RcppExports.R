@@ -2,10 +2,65 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 gaussian_kernel_weights <- function(coords, h, eps = 1e-15) {
-    .Call(`_KernelCommunication_gaussian_kernel_weights`, coords, h, eps)
+    .Call(`_multiScaleAC_gaussian_kernel_weights`, coords, h, eps)
+}
+
+#' Kernel row sums and spatially lagged gene1, for every bandwidth
+#'
+#' Internal. Computes, for each bandwidth h, the row sums of the kernel weight matrix and the
+#' vector v_h = K(h) (gene1 / rowsum(h)) which the caller contracts with gene2.
+#'
+#' @param coords N x 2 numeric matrix of coordinates.
+#' @param gene1 Length-N numeric vector, already centred and scaled.
+#' @param h_vec Numeric vector of bandwidths.
+#' @param eps Weights are kept when \code{w > eps}, and excluded from the row sum otherwise.
+#'   \code{eps = 0} keeps every non-underflowed weight, which is the documented default and the
+#'   condition under which this reduces exactly to the reference implementation.
+#' @param kernel "gaussian", "uniform" or "exponential".
+#' @param dist_method "euclidean", "manhattan" or "minkowski".
+#' @param p Order of the Minkowski distance; ignored by the other metrics.
+#' @param drop_isolated When TRUE, cells with a zero row sum contribute nothing rather than
+#'   producing a non-finite value. The caller uses this to implement nan_policy.
+#' @param n_threads Requested OpenMP threads; ignored when built without OpenMP support.
+#' @param rowsums_only When TRUE, skip the second pass and return the full row sum matrix instead
+#'   of \code{V}. Used by \code{qc_neighborhoods()}, which needs the neighbourhood sizes but not
+#'   the lagged gene.
+#'
+#' @return A list with \code{V} (n_h x N) or \code{rowsums} (n_h x N), plus
+#'   \code{rowsum_mean}, \code{rowsum_min}, \code{n_isolated} and \code{h}.
+#' @keywords internal
+moran_kernel_pass <- function(coords, gene1, h_vec, eps = 0.0, kernel = "gaussian", dist_method = "euclidean", drop_isolated = TRUE, n_threads = 1L, rowsums_only = FALSE, p = 2.0) {
+    .Call(`_multiScaleAC_moran_kernel_pass`, coords, gene1, h_vec, eps, kernel, dist_method, drop_isolated, n_threads, rowsums_only, p)
+}
+
+#' Nearest-neighbour distance for every point
+#'
+#' Internal. One pass per point, so O(N) memory rather than the O(N^2) a full
+#' \code{as.matrix(dist(coords))} would need. \code{suggest_bandwidths()} previously built that
+#' full matrix, which made it unusable at the sample sizes this package targets: about 400 MB for
+#' the 7122-cell bundled example and 80 GB at N = 100000.
+#'
+#' @param coords N x 2 numeric matrix.
+#' @param dist_method "euclidean" or "manhattan".
+#' @param n_threads Requested OpenMP threads; ignored without OpenMP.
+#' @return Length-N numeric vector of distances to the closest other point.
+#' @keywords internal
+nn_distance <- function(coords, dist_method = "euclidean", n_threads = 1L) {
+    .Call(`_multiScaleAC_nn_distance`, coords, dist_method, n_threads)
+}
+
+#' Report whether the package was compiled with OpenMP support
+#'
+#' Internal. Used by tests and by the benchmark harness so a timing figure is never reported
+#' without saying whether it was threaded.
+#'
+#' @return An integer: the maximum number of threads available, or 1 without OpenMP.
+#' @keywords internal
+moran_max_threads <- function() {
+    .Call(`_multiScaleAC_moran_max_threads`)
 }
 
 sparse_dense_mult <- function(Ws, P) {
-    .Call(`_KernelCommunication_sparse_dense_mult`, Ws, P)
+    .Call(`_multiScaleAC_sparse_dense_mult`, Ws, P)
 }
 

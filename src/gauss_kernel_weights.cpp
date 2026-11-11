@@ -31,8 +31,8 @@ Eigen::SparseMatrix<double> gaussian_kernel_weights(const Eigen::MatrixXd& coord
       }
     }
 
-    for (const auto& [j, w] : row_weights) {
-      triplets.emplace_back(i, j, w / rowsum);
+    for (const auto& pair : row_weights) {
+      triplets.emplace_back(i, pair.first, pair.second / rowsum);
     }
   }
 

@@ -1,0 +1,85 @@
+# pkgdown configuration.
+#
+# Writes to the default `docs/`, which is build output and is gitignored. The site is built and
+# published by .github/workflows/pkgdown.yaml on every push to the default branch, so generated HTML
+# never enters the source tree and cannot drift from the code it documents.
+#
+# `docs/` was previously occupied by hand-written development notes; those now live in
+# `process_docs/`, which freed the conventional destination.
+#
+# To build locally instead: pkgdown::build_site()
+
+url: https://acsoupir.github.io/KernelCommunication/
+
+home:
+  title: Multi-scale spatial autocorrelation with Moran's I
+  description: >
+    Bivariate Moran's I as a function of Gaussian kernel bandwidth, giving a
+    functional curve over spatial scales rather than a single value at one
+    arbitrarily chosen scale.
+
+reference:
+  - title: Computing curves
+    desc: The main entry points.
+    contents:
+      - multiScaleAC
+      - multiScaleAC_batch
+
+  - title: Choosing and checking bandwidths
+    desc: >
+      Bandwidths are in coordinate units, and getting that scale wrong is the most
+      common source of meaningless results. Start here.
+    contents:
+      - suggest_bandwidths
+      - qc_neighborhoods
+      - validate_inputs
+
+  - title: Inference
+    desc: >
+      Permutation and moment-based significance, and multiple-testing correction.
+    contents:
+      - compute_significance
+      - adjust_pvalues
+
+  - title: Visualisation
+    contents:
+      - plot_scale_curve
+      - plot_permutation_distribution
+      - plot_batch_comparison
+      - plot_significance_summary
+      - plot.kernelcomm_result
+
+  - title: Results
+    contents:
+      - kernelcomm_result-class
+      - create_kernelcomm_result
+      - print.kernelcomm_result
+      - summary.kernelcomm_result
+
+  - title: Downstream analysis
+    desc: Handing curves to functional data analysis.
+    contents:
+      - export_mxfda
+      - export_mxfda_batch
+
+  - title: Reference implementation
+    desc: >
+      Permanently supported and not deprecated. soupir_moran_multi() is the oracle
+      the test suite is pinned to.
+    contents:
+      - soupir_moran_multi
+      - soupir_moran_bv
+
+  - title: Low-level utilities
+    contents:
+      - listw_to_sparse
+      - lag_sparse
+
+  - title: Data
+    contents:
+      - ccRCCExample
+
+articles:
+  - title: Getting started
+    contents:
+      - multiScaleAC

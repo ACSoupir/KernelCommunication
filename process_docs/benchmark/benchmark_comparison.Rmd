@@ -1,0 +1,482 @@
+---
+title: "Benchmark: soupir_moran_multi() vs multiScaleAC()"
+author: "KernelCommunication Package"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: cosmo
+    highlight: textmate
+    code_folding: show
+params:
+  h_max: 250
+  h_by: 5
+  perms: 100
+  seed: 333
+  bench_iterations: 3
+  use_subset: true
+  subset_size: 2000
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 6,
+  dpi = 300
+)
+```
+
+# Overview
+
+This report compares the performance and accuracy of two functions for computing 
+bivariate Moran's I across multiple kernel bandwidth scales:
+
+1. **`soupir_moran_multi()`** - Legacy R implementation
+2. **`multiScaleAC()`** - New implementation with RcppEigen backend
+
+We benchmark both functions using the included `ccRCCExample` dataset, comparing:
+- Execution time
+- Memory allocation
+- Accuracy of observed Moran's I values
+
+# Environment Setup
+
+## Install and Load Required Packages
+
+```{r install-packages, eval=TRUE}
+required_packages <- c("devtools", "bench", "rmarkdown", "knitr", "ggplot2", "dplyr", "tidyr")
+
+for (pkg in required_packages) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    message(paste("Installing", pkg, "..."))
+    install.packages(pkg, repos = "https://cloud.r-project.org")
+  }
+  suppressPackageStartupMessages(library(pkg, character.only = TRUE))
+}
+
+message("All required packages loaded successfully.")
+```
+
+## Load KernelCommunication Package
+
+```{r load-package, eval=TRUE}
+library(devtools)
+load_all()
+message("KernelCommunication package loaded successfully.")
+```
+
+## Load Example Dataset
+
+```{r load-data, eval=TRUE}
+data(ccRCCExample, package = "KernelCommunication")
+
+cat("Full dataset dimensions:", nrow(ccRCCExample), "cells\n")
+cat("Columns:", paste(names(ccRCCExample), collapse = ", "), "\n")
+
+# Optionally use subset for faster benchmarking
+use_subset <- params$use_subset
+subset_size <- params$subset_size
+
+if (use_subset && nrow(ccRCCExample) > subset_size) {
+  set.seed(42)
+  idx <- sample(1:nrow(ccRCCExample), subset_size)
+  cat("Using subset of", subset_size, "cells for benchmarking\n")
+} else {
+  idx <- 1:nrow(ccRCCExample)
+  cat("Using full dataset\n")
+}
+
+coords <- as.matrix(ccRCCExample[idx, c("x", "y")])
+gene1 <- ccRCCExample$CD274[idx]
+gene2 <- ccRCCExample$PDCD1[idx]
+
+cat("Coordinates range: x [", min(coords[,1]), ",", max(coords[,1]), "], ",
+    "y [", min(coords[,2]), ",", max(coords[,2]), "]\n")
+```
+
+# Benchmark Configuration
+
+```{r config, eval=TRUE}
+h_max <- params$h_max
+h_by <- params$h_by
+perms <- params$perms
+seed <- params$seed
+bench_iterations <- params$bench_iterations
+
+h_vec <- seq(h_by, h_max, by = h_by)
+
+cat("Bandwidth range:", min(h_vec), "to", max(h_vec), "\n")
+cat("Number of bandwidths:", length(h_vec), "\n")
+cat("Number of permutations:", perms, "\n")
+cat("Random seed:", seed, "\n")
+cat("Benchmark iterations:", bench_iterations, "\n")
+```
+
+# Benchmark Execution
+
+## Running soupir_moran_multi()
+
+```{r benchmark-soupir, eval=TRUE}
+soupir_result <- NULL
+soupir_bench <- NULL
+
+tryCatch({
+  soupir_bench <- bench::mark(
+    soupir_moran_multi(
+      coords = coords,
+      gene1 = gene1,
+      gene2 = gene2,
+      h_vec = h_vec,
+      perms = perms,
+      seed = seed
+    ),
+    iterations = bench_iterations,
+    check = FALSE,
+    filter_gc = TRUE
+  )
+  
+  soupir_result <- soupir_moran_multi(
+    coords = coords,
+    gene1 = gene1,
+    gene2 = gene2,
+    h_vec = h_vec,
+    perms = perms,
+    seed = seed
+  )
+  
+  cat("soupir_moran_multi() completed successfully.\n")
+}, error = function(e) {
+  cat("Error in soupir_moran_multi():", e$message, "\n")
+})
+
+if (!is.null(soupir_bench)) {
+  print(soupir_bench)
+}
+```
+
+## Running multiScaleAC()
+
+```{r benchmark-multiscale, eval=TRUE}
+multiscale_result <- NULL
+multiscale_bench <- NULL
+
+tryCatch({
+  multiscale_bench <- bench::mark(
+    multiScaleAC(
+      coords = coords,
+      gene1 = gene1,
+      gene2 = gene2,
+      h = h_vec,
+      perms = perms,
+      seed = seed,
+      kernel = "gaussian",
+      dist_method = "euclidean"
+    ),
+    iterations = bench_iterations,
+    check = FALSE,
+    filter_gc = TRUE
+  )
+  
+  multiscale_result <- multiScaleAC(
+    coords = coords,
+    gene1 = gene1,
+    gene2 = gene2,
+    h = h_vec,
+    perms = perms,
+    seed = seed,
+    kernel = "gaussian",
+    dist_method = "euclidean"
+  )
+  
+  cat("multiScaleAC() completed successfully.\n")
+}, error = function(e) {
+  cat("Error in multiScaleAC():", e$message, "\n")
+})
+
+if (!is.null(multiscale_bench)) {
+  print(multiscale_bench)
+}
+```
+
+## Debug: Benchmark Objects
+
+```{r debug-bench, eval=TRUE}
+cat("soupir_bench is NULL:", is.null(soupir_bench), "\n")
+cat("multiscale_bench is NULL:", is.null(multiscale_bench), "\n")
+
+if (!is.null(soupir_bench)) {
+  cat("soupir_bench rows:", nrow(soupir_bench), "\n")
+  cat("soupir_bench columns:", paste(names(soupir_bench), collapse=", "), "\n")
+}
+
+if (!is.null(multiscale_bench)) {
+  cat("multiscale_bench rows:", nrow(multiscale_bench), "\n")
+  cat("multiscale_bench columns:", paste(names(multiscale_bench), collapse=", "), "\n")
+}
+```
+
+# Results
+
+## Timing Comparison
+
+```{r timing-summary, eval=TRUE}
+soupir_valid <- !is.null(soupir_bench) && nrow(soupir_bench) > 0
+multiscale_valid <- !is.null(multiscale_bench) && nrow(multiscale_bench) > 0
+
+if (soupir_valid && multiscale_valid) {
+  soupir_median <- as.numeric(soupir_bench$median)
+  multiscale_median <- as.numeric(multiscale_bench$median)
+  soupir_mean <- mean(as.numeric(soupir_bench$time[[1]]))
+  multiscale_mean <- mean(as.numeric(multiscale_bench$time[[1]]))
+  soupir_mem <- as.numeric(soupir_bench$mem_alloc)
+  multiscale_mem <- as.numeric(multiscale_bench$mem_alloc)
+  
+  timing_df <- data.frame(
+    Function = c("soupir_moran_multi()", "multiScaleAC()"),
+    Median_Time = c(soupir_median, multiscale_median),
+    Mean_Time = c(soupir_mean, multiscale_mean),
+    Memory_MB = c(soupir_mem, multiscale_mem) / (1024^2)
+  )
+  
+  knitr::kable(timing_df, 
+               caption = "Performance Summary",
+               digits = 3,
+               col.names = c("Function", "Median Time (s)", "Mean Time (s)", "Memory (MB)"))
+  
+  speed_ratio <- soupir_median / multiscale_median
+  cat("\nSpeed ratio (soupir/multiScaleAC):", round(speed_ratio, 2), "x\n")
+} else {
+  cat("Benchmark results not available.\n")
+  cat("soupir_bench valid:", soupir_valid, "\n")
+  cat("multiscale_bench valid:", multiscale_valid, "\n")
+}
+```
+
+## Timing Visualization
+
+```{r timing-plot, eval=TRUE, fig.cap="Execution time comparison between soupir_moran_multi() and multiScaleAC()"}
+soupir_valid <- !is.null(soupir_bench) && nrow(soupir_bench) > 0
+multiscale_valid <- !is.null(multiscale_bench) && nrow(multiscale_bench) > 0
+
+if (soupir_valid && multiscale_valid) {
+  soupir_times <- as.numeric(soupir_bench$time[[1]])
+  multiscale_times <- as.numeric(multiscale_bench$time[[1]])
+  n_iter <- max(length(soupir_times), length(multiscale_times))
+  
+  timing_plot_data <- data.frame(
+    Function = rep(c("soupir_moran_multi()", "multiScaleAC()"), each = n_iter),
+    Time = c(soupir_times[1:n_iter], multiscale_times[1:n_iter]),
+    Iteration = rep(1:n_iter, 2)
+  )
+  
+  ggplot(timing_plot_data, aes(x = Function, y = Time, fill = Function)) +
+    geom_boxplot(alpha = 0.7) +
+    geom_jitter(width = 0.15, alpha = 0.6, size = 2) +
+    labs(
+      title = "Execution Time Comparison",
+      x = "Function",
+      y = "Time (seconds)"
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5, face = "bold")
+    ) +
+    scale_fill_brewer(palette = "Set1")
+} else {
+  cat("Benchmark results not available for plotting.\n")
+}
+```
+
+## Memory Allocation Comparison
+
+```{r memory-plot, eval=TRUE, fig.cap="Memory allocation comparison between soupir_moran_multi() and multiScaleAC()"}
+soupir_valid <- !is.null(soupir_bench) && nrow(soupir_bench) > 0
+multiscale_valid <- !is.null(multiscale_bench) && nrow(multiscale_bench) > 0
+
+if (soupir_valid && multiscale_valid) {
+  soupir_mem <- as.numeric(soupir_bench$mem_alloc)
+  multiscale_mem <- as.numeric(multiscale_bench$mem_alloc)
+  
+  memory_df <- data.frame(
+    Function = c("soupir_moran_multi()", "multiScaleAC()"),
+    Memory_MB = c(soupir_mem, multiscale_mem) / (1024^2)
+  )
+  
+  ggplot(memory_df, aes(x = Function, y = Memory_MB, fill = Function)) +
+    geom_bar(stat = "identity", alpha = 0.7) +
+    labs(
+      title = "Memory Allocation Comparison",
+      x = "Function",
+      y = "Memory (MB)"
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5, face = "bold")
+    ) +
+    scale_fill_brewer(palette = "Set2")
+} else {
+  cat("Benchmark results not available for plotting.\n")
+}
+```
+
+# Accuracy Comparison
+
+## Observed Moran's I Values
+
+```{r accuracy-data, eval=TRUE}
+if (!is.null(soupir_result) && !is.null(multiscale_result)) {
+  accuracy_df <- data.frame(
+    h = h_vec,
+    soupir = soupir_result$observed,
+    multiScaleAC = multiscale_result$observed
+  )
+  
+  accuracy_df$absolute_diff <- abs(accuracy_df$soupir - accuracy_df$multiScaleAC)
+  accuracy_df$relative_diff <- abs((accuracy_df$soupir - accuracy_df$multiScaleAC) / 
+                                     accuracy_df$soupir)
+  accuracy_df$relative_diff[is.infinite(accuracy_df$relative_diff)] <- NA
+  
+  cat("Summary of observed Moran's I values:\n")
+  print(summary(accuracy_df$absolute_diff))
+  cat("\nMaximum absolute difference:", max(accuracy_df$absolute_diff, na.rm = TRUE), "\n")
+  cat("Mean absolute error (MAE):", mean(accuracy_df$absolute_diff, na.rm = TRUE), "\n")
+  cat("Root mean square error (RMSE):", 
+      sqrt(mean(accuracy_df$absolute_diff^2, na.rm = TRUE)), "\n")
+  cat("Correlation between methods:", 
+      cor(accuracy_df$soupir, accuracy_df$multiScaleAC, use = "complete.obs"), "\n")
+}
+```
+
+## Observed Moran's I Comparison Plot
+
+```{r observed-plot, eval=TRUE, fig.cap="Comparison of observed Moran's I values across bandwidths"}
+if (!is.null(soupir_result) && !is.null(multiscale_result)) {
+  plot_df <- data.frame(
+    h = rep(h_vec, 2),
+    Moran_I = c(soupir_result$observed, multiscale_result$observed),
+    Function = rep(c("soupir_moran_multi()", "multiScaleAC()"), each = length(h_vec))
+  )
+  
+  ggplot(plot_df, aes(x = h, y = Moran_I, color = Function, linetype = Function)) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 2, alpha = 0.6) +
+    labs(
+      title = "Observed Moran's I vs Bandwidth",
+      x = "Bandwidth (h)",
+      y = "Moran's I"
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "top",
+      legend.title = element_blank(),
+      plot.title = element_text(hjust = 0.5, face = "bold")
+    ) +
+    scale_color_brewer(palette = "Dark2")
+}
+```
+
+## Difference Plot
+
+```{r difference-plot, eval=TRUE, fig.cap="Absolute difference in observed Moran's I between methods"}
+if (!is.null(soupir_result) && !is.null(multiscale_result)) {
+  diff_df <- data.frame(
+    h = h_vec,
+    absolute_diff = abs(soupir_result$observed - multiscale_result$observed)
+  )
+  
+  ggplot(diff_df, aes(x = h, y = absolute_diff)) +
+    geom_line(color = "steelblue", linewidth = 1) +
+    geom_point(color = "steelblue", size = 2, alpha = 0.6) +
+    geom_hline(yintercept = 1e-10, linetype = "dashed", color = "red", linewidth = 0.8) +
+    geom_hline(yintercept = 1e-14, linetype = "dotted", color = "darkgreen", linewidth = 0.8) +
+    labs(
+      title = "Absolute Difference: soupir_moran_multi() - multiScaleAC()",
+      x = "Bandwidth (h)",
+      y = "Absolute Difference"
+    ) +
+    annotate("text", x = max(h_vec) * 0.7, y = 1e-10 * 1.1, 
+             label = "1e-10 threshold", color = "red", hjust = 0) +
+    annotate("text", x = max(h_vec) * 0.7, y = 1e-14 * 1.1, 
+             label = "Machine epsilon (~1e-14)", color = "darkgreen", hjust = 0) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold")
+    ) +
+    scale_y_log10()
+}
+```
+
+## Accuracy Summary Table
+
+```{r accuracy-table, eval=TRUE}
+if (!is.null(soupir_result) && !is.null(multiscale_result)) {
+  accuracy_summary <- data.frame(
+    Metric = c(
+      "Maximum Absolute Difference",
+      "Mean Absolute Error (MAE)",
+      "Root Mean Square Error (RMSE)",
+      "Correlation Coefficient",
+      "Values within 1e-10 tolerance",
+      "Values within 1e-14 tolerance"
+    ),
+    Value = c(
+      max(accuracy_df$absolute_diff, na.rm = TRUE),
+      mean(accuracy_df$absolute_diff, na.rm = TRUE),
+      sqrt(mean(accuracy_df$absolute_diff^2, na.rm = TRUE)),
+      cor(accuracy_df$soupir, accuracy_df$multiScaleAC, use = "complete.obs"),
+      paste0(sum(accuracy_df$absolute_diff < 1e-10), " / ", length(h_vec)),
+      paste0(sum(accuracy_df$absolute_diff < 1e-14), " / ", length(h_vec))
+    )
+  )
+  
+  knitr::kable(accuracy_summary,
+               caption = "Accuracy Comparison Summary",
+               col.names = c("Metric", "Value"))
+}
+```
+
+# Conclusions
+
+```{r conclusions, eval=TRUE}
+if (!is.null(soupir_bench) && !is.null(multiscale_bench) && 
+    !is.null(soupir_result) && !is.null(multiscale_result)) {
+  
+  speed_ratio <- median(soupir_bench$elapsed) / median(multiscale_bench$elapsed)
+  memory_ratio <- median(soupir_bench$mem_alloc) / median(multiscale_bench$mem_alloc)
+  max_diff <- max(accuracy_df$absolute_diff, na.rm = TRUE)
+  
+  cat("## Summary\n\n")
+  cat("### Performance\n")
+  cat(sprintf("- **Speed**: multiScaleAC() is %.2fx %s than soupir_moran_multi()\n",
+              ifelse(speed_ratio > 1, speed_ratio, 1/speed_ratio),
+              ifelse(speed_ratio > 1, "faster", "slower")))
+  cat(sprintf("- **Memory**: multiScaleAC() uses %.2fx %s memory than soupir_moran_multi()\n",
+              ifelse(memory_ratio > 1, 1/memory_ratio, memory_ratio),
+              ifelse(memory_ratio > 1, "less", "more")))
+  
+  cat("\n### Accuracy\n")
+  cat(sprintf("- **Maximum absolute difference**: %.2e\n", max_diff))
+  cat(sprintf("- **Correlation**: %.6f\n", 
+              cor(accuracy_df$soupir, accuracy_df$multiScaleAC, use = "complete.obs")))
+  
+  if (max_diff < 1e-14) {
+    cat("- **Assessment**: Functions produce identical results within machine precision\n")
+  } else if (max_diff < 1e-10) {
+    cat("- **Assessment**: Functions produce nearly identical results (difference < 1e-10)\n")
+  } else {
+    cat("- **Assessment**: Functions show small but notable differences\n")
+  }
+}
+```
+
+# Session Information
+
+```{r session-info, eval=TRUE}
+sessionInfo()
+```

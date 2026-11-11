@@ -2,9 +2,9 @@
 #'
 #' @param gene1 numeric vector of expression values for the first gene
 #' @param gene2 numeric vector of expression values for the second gene
-#' @param coords numeric $n×2$ matrix of spatial coordinates (rows = cells)
-#' @param h numeric vector of Gaussian bandwidths
-#' @param perms integer number of random permutations (same set used for all $h$)
+#' @param coords numeric matrix of spatial coordinates (rows = cells, 2 columns)
+#' @param h_vec numeric vector of Gaussian bandwidths
+#' @param perms integer number of random permutations (same set used for all bandwidths)
 #' @param seed integer random seed (single seed controls all permutations)
 #'
 #' @return A list with components
@@ -19,7 +19,7 @@
 #' g1 <- rnorm(n)
 #' g2 <- rnorm(n)
 #' hvec <- c(5, 15, 30, 60)
-#' res <- soupir_moran_multi(g1, g2, coords, h = hvec,
+#' res <- soupir_moran_multi(coords, g1, g2, h_vec = hvec,
 #'                           perms = 500, seed = 123)
 #' plot(hvec, res$observed, type = "b")
 #'
@@ -58,9 +58,9 @@ soupir_moran_multi <- function(coords, gene1, gene2, h_vec,
 
   out = list()
   out$h = h_vec
-  out$observed = sapply(results, function(x) as.numeric(x$observed)) %>% unname()
+  out$observed = unname(sapply(results, function(x) as.numeric(x$observed)))
   out$observed[is.nan(out$observed)] = 0
-  out$permutations = sapply(results, function(x) as.numeric(x$permutations)) %>% t() #rows are h, columns are perms
+  out$permutations = t(sapply(results, function(x) as.numeric(x$permutations))) #rows are h, columns are perms
   out$permutations[is.nan(out$permutations)] = 0
   return(out)
 }

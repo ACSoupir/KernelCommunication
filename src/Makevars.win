@@ -1,0 +1,5 @@
+# Windows counterpart of src/Makevars. Rtools ships a GCC toolchain with OpenMP, so the parallel
+# regions in moran_kernel.cpp are active here.
+
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
+PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS)
