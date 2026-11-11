@@ -31,9 +31,8 @@
 #' this is visible before it is mistaken for a biological result.
 #'
 #' @section Package name:
-#' The package is \code{multiScaleAC}, matching the companion manuscript. The
-#' source repository remains named \code{KernelCommunication}, which is the URL
-#' cited in the paper.
+#' The package is \code{multiScaleAC}, matching the companion manuscript and the
+#' source repository at \url{https://github.com/ACSoupir/multiScaleAC}.
 #'
 #' @references
 #' Soupir AC, Hayes MT, Manley BJ, Wang X, Peres LC, Wrobel J, Fridley BL.

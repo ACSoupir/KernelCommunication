@@ -10,16 +10,11 @@ threshold**, so no cells or spots are dropped from the weight matrix. That is th
 main methodological difference from approaches that filter low kernel density
 estimates before computing the statistic.
 
-> **The package name and the repository name differ, deliberately.** The R package
-> is `multiScaleAC`, matching the companion manuscript. The repository stays
-> `KernelCommunication`, because that is the URL printed in the paper. Both are
-> correct in their own scope.
-
 ## Installation
 
 ```r
 # install.packages("remotes")
-remotes::install_github("ACSoupir/KernelCommunication")
+remotes::install_github("ACSoupir/multiScaleAC")
 ```
 
 Requires a C++ toolchain (`Rcpp`, `RcppEigen`). OpenMP is used when available;

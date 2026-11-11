@@ -42,9 +42,8 @@ this is visible before it is mistaken for a biological result.
 
 \section{Package name}{
 
-The package is \code{multiScaleAC}, matching the companion manuscript. The
-source repository remains named \code{KernelCommunication}, which is the URL
-cited in the paper.
+The package is \code{multiScaleAC}, matching the companion manuscript and the
+source repository at \url{https://github.com/ACSoupir/multiScaleAC}.
 }
 
 \references{
@@ -56,8 +55,8 @@ bandwidth. bioRxiv 2026.07.14.738306.
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/ACSoupir/KernelCommunication}
-  \item Report bugs at \url{https://github.com/ACSoupir/KernelCommunication/issues}
+  \item \url{https://github.com/ACSoupir/multiScaleAC}
+  \item Report bugs at \url{https://github.com/ACSoupir/multiScaleAC/issues}
 }
 
 }

@@ -6,7 +6,7 @@
 #
 # Deploys to the gh-pages branch. To serve it, set Settings -> Pages -> Source to "Deploy from a
 # branch", branch gh-pages, folder / (root). The URL in _pkgdown.yml and DESCRIPTION assumes
-# https://acsoupir.github.io/KernelCommunication/.
+# https://acsoupir.github.io/multiScaleAC/.
 #
 # Pull requests build the site but do not deploy, so a PR that breaks the documentation is caught
 # before it is merged.

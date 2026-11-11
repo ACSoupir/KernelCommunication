@@ -1,8 +1,9 @@
 # multiScaleAC 0.2.0
 
 First release of the `multiScaleAC()` interface. The package is renamed from
-`KernelCommunication` to `multiScaleAC`, matching the companion manuscript; the
-repository keeps its old name, because that is the URL the paper prints.
+`KernelCommunication` to `multiScaleAC`, matching the companion manuscript. The
+GitHub repository was later renamed to match as well
+(https://github.com/ACSoupir/multiScaleAC).
 
 Earlier releases contained only `soupir_moran_multi()` and `soupir_moran_bv()`.
 Both are unchanged, remain exported, and are not deprecated — `soupir_moran_multi()`

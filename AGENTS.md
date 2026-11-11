@@ -8,9 +8,10 @@ value at one chosen scale. Implements the method in the companion preprint
 *"multiScaleAC: Cell-Cell interaction with Moran's I as a function of kernel bandwidth"*
 (bioRxiv 2026.07.14.738306).
 
-**The R package is named `multiScaleAC`, matching the manuscript. The repository and local directory
-remain `KernelCommunication`, because that is the URL printed in the paper.** Both names are correct
-in their own scope; do not "fix" one to match the other.
+**The R package and the GitHub repository are both named `multiScaleAC`
+(https://github.com/ACSoupir/multiScaleAC).** The local working-copy directory on this machine is
+still named `KernelCommunication` from before the repository rename; that is just a folder name on
+disk, unrelated to git, and does not need to match.
 
 ## Non-negotiable rules
 

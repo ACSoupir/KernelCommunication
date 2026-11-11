@@ -16,9 +16,9 @@ Description: Computes bivariate Moran's I as a function of Gaussian kernel
     interoperable with functional data analysis via 'mxfda'. Implements the
     method described in Soupir et al. (2026) <doi:10.64898/2026.07.14.738306>.
 License: GPL (>= 2)
-URL: https://github.com/ACSoupir/KernelCommunication,
-    https://acsoupir.github.io/KernelCommunication/
-BugReports: https://github.com/ACSoupir/KernelCommunication/issues
+URL: https://github.com/ACSoupir/multiScaleAC,
+    https://acsoupir.github.io/multiScaleAC/
+BugReports: https://github.com/ACSoupir/multiScaleAC/issues
 Imports: Rcpp (>= 1.0.13),
     Matrix,
     ggplot2,
